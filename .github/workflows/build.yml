@@ -5,6 +5,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,8 +21,8 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK licenses (best-effort)
+        run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -27,9 +30,30 @@ jobs:
           gradle-version: 8.7
 
       - name: Build debug APK
-        run: gradle assembleDebug --no-daemon
+        id: build
+        continue-on-error: true
+        run: gradle assembleDebug --no-daemon --stacktrace > build_output.log 2>&1
+
+      - name: Show tail of build log
+        if: always()
+        run: tail -n 200 build_output.log || true
+
+      - name: Save build log on failure
+        if: steps.build.outcome == 'failure'
+        run: |
+          tail -n 400 build_output.log > BUILD_ERROR.txt
+          git config user.email "ci-bot@users.noreply.github.com"
+          git config user.name "CI Bot"
+          git add -f BUILD_ERROR.txt
+          git commit -m "ci: attach build error log [skip ci]" || true
+          git push || true
+
+      - name: Fail job if build failed
+        if: steps.build.outcome == 'failure'
+        run: exit 1
 
       - name: Upload APK artifact
+        if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: speed-alert-debug-apk
