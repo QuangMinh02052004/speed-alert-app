@@ -58,3 +58,14 @@ jobs:
         with:
           name: speed-alert-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Commit APK back to repo
+        if: steps.build.outcome == 'success'
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/app-debug.apk
+          git config user.email "ci-bot@users.noreply.github.com"
+          git config user.name "CI Bot"
+          git add -f dist/app-debug.apk
+          git commit -m "ci: attach built APK [skip ci]" || true
+          git push || true
