@@ -16,10 +16,11 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 
 /**
- * Màn hình bản đồ: hiển thị bản đồ nền (style demo miễn phí của MapLibre - chỉ
- * để test, nên thay bằng nguồn tile chi tiết hơn cho VN khi triển khai thật),
- * và cho người dùng chạm vào bản đồ để tự đánh dấu vị trí camera bắn tốc độ
- * (lưu local qua Room, dùng chung DB với SpeedRepository).
+ * Màn hình bản đồ: hiển thị bản đồ nền (OpenFreeMap - vector tile miễn phí từ
+ * dữ liệu OpenStreetMap, phủ đầy đủ Việt Nam, không cần API key, không giới
+ * hạn lượt gọi - xem https://openfreemap.org), và cho người dùng chạm vào
+ * bản đồ để tự đánh dấu vị trí camera bắn tốc độ (lưu local qua Room, dùng
+ * chung DB với SpeedRepository).
  *
  * Dùng API Marker/MarkerOptions kiểu cũ (đã deprecated từ MapLibre 7.0 nhưng
  * vẫn hoạt động) để đơn giản hoá - không cần thêm plugin annotation/ảnh icon
@@ -40,7 +41,7 @@ class MapActivity : ComponentActivity() {
         mapView.onCreate(savedInstanceState)
         mapView.getMapAsync { map ->
             mapLibreMap = map
-            map.setStyle("https://demotiles.maplibre.org/style.json")
+            map.setStyle("https://tiles.openfreemap.org/styles/bright")
 
             val current = SpeedState.state.value
             val startLat = current.lastLat ?: DEFAULT_LAT

@@ -12,10 +12,13 @@ Source code Android Studio đầy đủ, gồm cả Giai đoạn 1 và Giai đo�
 - Chạy nền qua foreground service + notification (hiện cả cảnh báo camera trong
   notification).
 
-**Lưu ý về bản đồ:** style `demotiles.maplibre.org` là bản đồ demo miễn phí của
-MapLibre, độ chi tiết thấp (không có tên đường/địa danh chi tiết ở VN) - đủ để
-test tính năng chạm-để-đánh-dấu, nhưng nên đổi sang nguồn tile chi tiết hơn
-(MapTiler, Stadia Maps, hoặc tự host từ OSM) khi làm bản chính thức.
+**Về bản đồ:** dùng OpenFreeMap (`tiles.openfreemap.org`) - bản đồ vector từ dữ
+liệu OpenStreetMap, có đầy đủ tên đường/địa danh Việt Nam, miễn phí, không cần
+đăng ký hay API key. Đây là dịch vụ công cộng chạy "as-is" (không có cam kết
+SLA chính thức) - nếu sau này họ ngừng dịch vụ hoặc bạn cần độ ổn định cao hơn
+cho production, có thể tự host lại đúng bộ dữ liệu này (mã nguồn mở, xem
+github.com/hyperknot/openfreemap) hoặc chuyển sang MapTiler/Stadia Maps (cần
+đăng ký API key miễn phí).
 
 ## Vì sao chưa có sẵn file APK
 Code này được viết bằng tay, KHÔNG được biên dịch/kiểm thử trong môi trường viết
