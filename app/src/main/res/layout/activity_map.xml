@@ -15,6 +15,6 @@
         android:background="#CC000000"
         android:textColor="#FFFFFF"
         android:padding="12dp"
-        android:text="Chạm vào bản đồ để đánh dấu vị trí camera bắn tốc độ" />
+        android:text="Chạm vào chấm vị trí của bạn để xem địa chỉ" />
 
 </FrameLayout>

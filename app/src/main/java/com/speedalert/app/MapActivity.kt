@@ -5,7 +5,6 @@ import android.location.Geocoder
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import com.speedalert.app.data.AppDatabase
-import com.speedalert.app.data.CameraLocation
 import com.speedalert.app.service.SpeedState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,9 +24,8 @@ import java.util.Locale
  * Màn hình bản đồ: hiển thị bản đồ nền (OpenFreeMap - vector tile miễn phí từ
  * dữ liệu OpenStreetMap, phủ đầy đủ Việt Nam, không cần API key, không giới
  * hạn lượt gọi - xem https://openfreemap.org), chấm đánh dấu vị trí hiện tại
- * (tự cập nhật theo dữ liệu GPS từ LocationTrackingService đang chạy nền),
- * và cho người dùng chạm vào bản đồ để tự đánh dấu vị trí camera bắn tốc độ
- * (lưu local qua Room, dùng chung DB với SpeedRepository).
+ * (tự cập nhật theo dữ liệu GPS từ LocationTrackingService đang chạy nền,
+ * chạm vào để xem địa chỉ), và các camera bắn tốc độ đã lưu trước đó.
  *
  * Dùng API Marker/MarkerOptions kiểu cũ (đã deprecated từ MapLibre 7.0 nhưng
  * vẫn hoạt động) để đơn giản hoá - không cần thêm plugin annotation/ảnh icon
@@ -63,12 +61,6 @@ class MapActivity : ComponentActivity() {
 
             loadSavedCameras(map)
             observeMyLocation(map)
-
-            map.addOnMapClickListener { point ->
-                saveCameraLocation(point.latitude, point.longitude)
-                map.addMarker(MarkerOptions().position(point).title("Camera bắn tốc độ"))
-                true
-            }
 
             map.setOnMarkerClickListener { marker ->
                 if (marker.title == MY_LOCATION_TITLE) {
@@ -131,13 +123,6 @@ class MapActivity : ComponentActivity() {
                         .title("Camera bắn tốc độ")
                 )
             }
-        }
-    }
-
-    private fun saveCameraLocation(lat: Double, lon: Double) {
-        scope.launch {
-            AppDatabase.getInstance(applicationContext).cameraDao()
-                .insert(CameraLocation(lat = lat, lon = lon))
         }
     }
 
