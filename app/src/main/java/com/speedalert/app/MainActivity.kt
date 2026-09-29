@@ -135,6 +135,12 @@ fun SpeedScreen() {
             }) {
                 Text("Xem bản đồ / Đánh dấu camera")
             }
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(onClick = {
+                context.startActivity(Intent(context, DashcamActivity::class.java))
+            }) {
+                Text("Camera hành trình")
+            }
         }
     }
 }

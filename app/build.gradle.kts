@@ -52,4 +52,11 @@ dependencies {
     ksp("androidx.room:room-compiler:2.7.2")
 
     implementation("org.maplibre.gl:android-sdk:13.6.1")
+
+    val cameraxVersion = "1.5.1"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-video:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
 }
