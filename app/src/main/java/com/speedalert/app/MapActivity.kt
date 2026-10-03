@@ -1,9 +1,21 @@
 package com.speedalert.app
 
+import android.Manifest
 import android.app.AlertDialog
+import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.widget.Switch
+import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.core.content.ContextCompat
 import com.speedalert.app.data.AppDatabase
 import com.speedalert.app.service.SpeedState
 import kotlinx.coroutines.CoroutineScope
@@ -15,23 +27,22 @@ import org.maplibre.android.MapLibre
 import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.camera.CameraPosition
+import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import java.util.Locale
 
 /**
- * Màn hình bản đồ: hiển thị bản đồ nền (OpenFreeMap - vector tile miễn phí từ
- * dữ liệu OpenStreetMap, phủ đầy đủ Việt Nam, không cần API key, không giới
- * hạn lượt gọi - xem https://openfreemap.org), chấm đánh dấu vị trí hiện tại
- * (tự cập nhật theo dữ liệu GPS từ LocationTrackingService đang chạy nền,
- * chạm vào để xem địa chỉ), và các camera bắn tốc độ đã lưu trước đó.
+ * Màn hình bản đồ: hiển thị bản đồ nền (OpenFreeMap, phủ đầy đủ Việt Nam,
+ * miễn phí không cần API key), chấm vị trí hiện tại TỰ ĐỘNG BÁM theo GPS
+ * (camera bản đồ tự xoay/di chuyển theo mỗi lần cập nhật vị trí), và các
+ * camera bắn tốc độ đã lưu trước đó.
  *
- * Dùng API Marker/MarkerOptions kiểu cũ (đã deprecated từ MapLibre 7.0 nhưng
- * vẫn hoạt động) để đơn giản hoá - không cần thêm plugin annotation/ảnh icon
- * riêng. Vì vậy chấm vị trí hiện tại và camera dùng chung icon mặc định,
- * chỉ khác nhau ở tiêu đề/hành vi khi chạm vào - có thể nâng cấp icon riêng
- * sau nếu cần.
+ * Chạm vào chấm vị trí của bạn mở bảng thông tin: tốc độ hiện tại, giới hạn
+ * tốc độ, tên đường, địa chỉ (tra ngược qua Geocoder), và công tắc bật/tắt
+ * xem camera sau trực tiếp ngay trong bảng đó (dùng CameraX, chỉ xem - không
+ * ghi hình, khác với màn hình Camera hành trình).
  */
 class MapActivity : ComponentActivity() {
 
@@ -39,6 +50,21 @@ class MapActivity : ComponentActivity() {
     private lateinit var mapLibreMap: MapLibreMap
     private val scope = CoroutineScope(Dispatchers.Main)
     private var myLocationMarker: Marker? = null
+    private var liveCameraProvider: ProcessCameraProvider? = null
+
+    private var pendingPreviewView: PreviewView? = null
+    private var pendingSwitch: Switch? = null
+
+    private val cameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val previewView = pendingPreviewView
+        if (granted && previewView != null) {
+            startLivePreview(previewView)
+        } else {
+            pendingSwitch?.isChecked = false
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,7 +82,7 @@ class MapActivity : ComponentActivity() {
             val startLon = current.lastLon ?: DEFAULT_LON
             map.cameraPosition = CameraPosition.Builder()
                 .target(LatLng(startLat, startLon))
-                .zoom(14.0)
+                .zoom(16.0)
                 .build()
 
             loadSavedCameras(map)
@@ -64,35 +90,76 @@ class MapActivity : ComponentActivity() {
 
             map.setOnMarkerClickListener { marker ->
                 if (marker.title == MY_LOCATION_TITLE) {
-                    showAddressForLocation(marker.position.latitude, marker.position.longitude)
-                    true // đã xử lý - không hiện info window mặc định
+                    showLocationInfoDialog(marker.position.latitude, marker.position.longitude)
+                    true
                 } else {
-                    false // để hành vi mặc định (hiện tiêu đề) cho các marker khác
+                    false
                 }
             }
         }
     }
 
-    /** Theo dõi vị trí hiện tại (từ Service chạy nền) và cập nhật chấm đánh dấu trên bản đồ. */
+    /** Theo dõi vị trí hiện tại và TỰ ĐỘNG đưa camera bản đồ bám theo (auto-follow). */
     private fun observeMyLocation(map: MapLibreMap) {
         scope.launch {
             SpeedState.state.collect { state ->
                 val lat = state.lastLat
                 val lon = state.lastLon
                 if (lat != null && lon != null) {
+                    val latLng = LatLng(lat, lon)
                     myLocationMarker?.let { map.removeMarker(it) }
                     myLocationMarker = map.addMarker(
-                        MarkerOptions()
-                            .position(LatLng(lat, lon))
-                            .title(MY_LOCATION_TITLE)
+                        MarkerOptions().position(latLng).title(MY_LOCATION_TITLE)
                     )
+                    map.easeCamera(CameraUpdateFactory.newLatLng(latLng), 800)
                 }
             }
         }
     }
 
-    /** Tra ngược toạ độ ra địa chỉ (Geocoder có sẵn trong Android) và hiện hộp thoại. */
-    private fun showAddressForLocation(lat: Double, lon: Double) {
+    /** Bảng thông tin: tốc độ, giới hạn, đoạn đường, địa chỉ + công tắc xem camera trực tiếp. */
+    private fun showLocationInfoDialog(lat: Double, lon: Double) {
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_location_info, null)
+        val infoSpeed = view.findViewById<TextView>(R.id.infoSpeed)
+        val infoLimit = view.findViewById<TextView>(R.id.infoLimit)
+        val infoRoad = view.findViewById<TextView>(R.id.infoRoad)
+        val infoAddress = view.findViewById<TextView>(R.id.infoAddress)
+        val liveSwitch = view.findViewById<Switch>(R.id.liveCameraSwitch)
+        val livePreview = view.findViewById<PreviewView>(R.id.liveCameraPreview)
+
+        val state = SpeedState.state.value
+        infoSpeed.text = "Tốc độ hiện tại: ${state.currentSpeedKmh} km/h"
+        infoLimit.text = if (state.speedLimitKmh != null)
+            "Giới hạn tốc độ: ${state.speedLimitKmh} km/h"
+        else "Giới hạn tốc độ: chưa có dữ liệu"
+        infoRoad.text = if (state.roadName.isNotBlank()) "Đoạn đường: ${state.roadName}" else "Đoạn đường: không rõ"
+        infoAddress.text = "Địa chỉ: đang tra cứu..."
+
+        liveSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                livePreview.visibility = View.VISIBLE
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                    == PackageManager.PERMISSION_GRANTED
+                ) {
+                    startLivePreview(livePreview)
+                } else {
+                    pendingPreviewView = livePreview
+                    pendingSwitch = liveSwitch
+                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+            } else {
+                livePreview.visibility = View.GONE
+                stopLivePreview()
+            }
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Vị trí của bạn")
+            .setView(view)
+            .setPositiveButton("Đóng") { _, _ -> stopLivePreview() }
+            .setOnCancelListener { stopLivePreview() }
+            .show()
+
         scope.launch {
             val addressText = withContext(Dispatchers.IO) {
                 try {
@@ -105,12 +172,29 @@ class MapActivity : ComponentActivity() {
                     null
                 }
             }
-            AlertDialog.Builder(this@MapActivity)
-                .setTitle("Vị trí của bạn")
-                .setMessage(addressText ?: "Không lấy được địa chỉ (có thể do mất mạng hoặc máy không hỗ trợ tra cứu địa chỉ).")
-                .setPositiveButton("Đóng", null)
-                .show()
+            infoAddress.text = "Địa chỉ: ${addressText ?: "không lấy được (mất mạng hoặc máy không hỗ trợ)"}"
         }
+    }
+
+    private fun startLivePreview(previewView: PreviewView) {
+        val providerFuture = ProcessCameraProvider.getInstance(this)
+        providerFuture.addListener({
+            val provider = providerFuture.get()
+            liveCameraProvider = provider
+            val preview = Preview.Builder().build().also {
+                it.setSurfaceProvider(previewView.surfaceProvider)
+            }
+            try {
+                provider.unbindAll()
+                provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview)
+            } catch (e: Exception) {
+                // Camera có thể đang bận (vd. đang quay ở màn hình Camera hành trình) - bỏ qua.
+            }
+        }, ContextCompat.getMainExecutor(this))
+    }
+
+    private fun stopLivePreview() {
+        liveCameraProvider?.unbindAll()
     }
 
     private fun loadSavedCameras(map: MapLibreMap) {
@@ -149,6 +233,7 @@ class MapActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         mapView.onDestroy()
+        stopLivePreview()
         scope.cancel()
     }
 
@@ -158,7 +243,6 @@ class MapActivity : ComponentActivity() {
     }
 
     companion object {
-        // Toạ độ mặc định khi chưa có vị trí GPS nào - trung tâm TP.HCM
         private const val DEFAULT_LAT = 10.7769
         private const val DEFAULT_LON = 106.7009
         private const val MY_LOCATION_TITLE = "Vị trí của tôi"
