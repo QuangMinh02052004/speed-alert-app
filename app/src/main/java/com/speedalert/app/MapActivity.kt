@@ -2,18 +2,26 @@ package com.speedalert.app
 
 import android.Manifest
 import android.app.AlertDialog
+import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.os.Bundle
+import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.Switch
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.video.MediaStoreOutputOptions
+import androidx.camera.video.Recorder
+import androidx.camera.video.Recording
+import androidx.camera.video.VideoCapture
+import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import com.speedalert.app.data.AppDatabase
@@ -31,18 +39,19 @@ import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 /**
  * Màn hình bản đồ: hiển thị bản đồ nền (OpenFreeMap, phủ đầy đủ Việt Nam,
- * miễn phí không cần API key), chấm vị trí hiện tại TỰ ĐỘNG BÁM theo GPS
- * (camera bản đồ tự xoay/di chuyển theo mỗi lần cập nhật vị trí), và các
- * camera bắn tốc độ đã lưu trước đó.
+ * miễn phí không cần API key), chấm vị trí hiện tại TỰ ĐỘNG BÁM theo GPS,
+ * và các camera bắn tốc độ đã lưu trước đó.
  *
- * Chạm vào chấm vị trí của bạn mở bảng thông tin: tốc độ hiện tại, giới hạn
- * tốc độ, tên đường, địa chỉ (tra ngược qua Geocoder), và công tắc bật/tắt
- * xem camera sau trực tiếp ngay trong bảng đó (dùng CameraX, chỉ xem - không
- * ghi hình, khác với màn hình Camera hành trình).
+ * Chạm vào chấm vị trí mở bảng thông tin: tốc độ hiện tại, giới hạn tốc độ,
+ * tên đường, địa chỉ, và công tắc "Xem & tự động quay camera" - khi bật sẽ
+ * hoạt động như camera hành trình thực sự: quay + lưu video (qua MediaStore,
+ * vào Movies/SpeedAlert) ngay trong lúc xem, không chỉ xem suông.
  */
 class MapActivity : ComponentActivity() {
 
@@ -50,19 +59,24 @@ class MapActivity : ComponentActivity() {
     private lateinit var mapLibreMap: MapLibreMap
     private val scope = CoroutineScope(Dispatchers.Main)
     private var myLocationMarker: Marker? = null
+
     private var liveCameraProvider: ProcessCameraProvider? = null
+    private var liveRecording: Recording? = null
 
     private var pendingPreviewView: PreviewView? = null
     private var pendingSwitch: Switch? = null
 
     private val cameraPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        val cameraGranted = results[Manifest.permission.CAMERA] == true
+        val audioGranted = results[Manifest.permission.RECORD_AUDIO] == true
         val previewView = pendingPreviewView
-        if (granted && previewView != null) {
-            startLivePreview(previewView)
+        if (cameraGranted && audioGranted && previewView != null) {
+            startLiveRecording(previewView)
         } else {
             pendingSwitch?.isChecked = false
+            Toast.makeText(this, "Cần cấp quyền Camera và Micro để quay video", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -117,7 +131,7 @@ class MapActivity : ComponentActivity() {
         }
     }
 
-    /** Bảng thông tin: tốc độ, giới hạn, đoạn đường, địa chỉ + công tắc xem camera trực tiếp. */
+    /** Bảng thông tin: tốc độ, giới hạn, đoạn đường, địa chỉ + công tắc xem & quay camera. */
     private fun showLocationInfoDialog(lat: Double, lon: Double) {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_location_info, null)
         val infoSpeed = view.findViewById<TextView>(R.id.infoSpeed)
@@ -138,26 +152,28 @@ class MapActivity : ComponentActivity() {
         liveSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 livePreview.visibility = View.VISIBLE
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                    == PackageManager.PERMISSION_GRANTED
-                ) {
-                    startLivePreview(livePreview)
+                val needed = listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+                val allGranted = needed.all {
+                    ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+                }
+                if (allGranted) {
+                    startLiveRecording(livePreview)
                 } else {
                     pendingPreviewView = livePreview
                     pendingSwitch = liveSwitch
-                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                    cameraPermissionLauncher.launch(needed.toTypedArray())
                 }
             } else {
                 livePreview.visibility = View.GONE
-                stopLivePreview()
+                stopLiveRecording()
             }
         }
 
         AlertDialog.Builder(this)
             .setTitle("Vị trí của bạn")
             .setView(view)
-            .setPositiveButton("Đóng") { _, _ -> stopLivePreview() }
-            .setOnCancelListener { stopLivePreview() }
+            .setPositiveButton("Đóng") { _, _ -> stopLiveRecording() }
+            .setOnCancelListener { stopLiveRecording() }
             .show()
 
         scope.launch {
@@ -176,7 +192,8 @@ class MapActivity : ComponentActivity() {
         }
     }
 
-    private fun startLivePreview(previewView: PreviewView) {
+    /** Bật camera sau, xem trực tiếp + tự động quay và lưu video (như Camera hành trình). */
+    private fun startLiveRecording(previewView: PreviewView) {
         val providerFuture = ProcessCameraProvider.getInstance(this)
         providerFuture.addListener({
             val provider = providerFuture.get()
@@ -184,16 +201,39 @@ class MapActivity : ComponentActivity() {
             val preview = Preview.Builder().build().also {
                 it.setSurfaceProvider(previewView.surfaceProvider)
             }
+            val recorder = Recorder.Builder().build()
+            val videoCapture = VideoCapture.withOutput(recorder)
+
             try {
                 provider.unbindAll()
-                provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview)
+                provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, videoCapture)
+
+                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.Video.Media.DISPLAY_NAME, "hanhtrinh_dinhvi_$timestamp")
+                    put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/SpeedAlert")
+                }
+                val outputOptions = MediaStoreOutputOptions.Builder(
+                    contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                ).setContentValues(contentValues).build()
+
+                liveRecording = videoCapture.output
+                    .prepareRecording(this, outputOptions)
+                    .withAudioEnabled()
+                    .start(ContextCompat.getMainExecutor(this)) { event ->
+                        if (event is VideoRecordEvent.Finalize && !event.hasError()) {
+                            Toast.makeText(this, "Đã lưu video vào Movies/SpeedAlert", Toast.LENGTH_SHORT).show()
+                        }
+                    }
             } catch (e: Exception) {
                 // Camera có thể đang bận (vd. đang quay ở màn hình Camera hành trình) - bỏ qua.
             }
         }, ContextCompat.getMainExecutor(this))
     }
 
-    private fun stopLivePreview() {
+    private fun stopLiveRecording() {
+        liveRecording?.stop()
+        liveRecording = null
         liveCameraProvider?.unbindAll()
     }
 
@@ -233,7 +273,7 @@ class MapActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         mapView.onDestroy()
-        stopLivePreview()
+        stopLiveRecording()
         scope.cancel()
     }
 

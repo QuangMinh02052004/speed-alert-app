@@ -37,7 +37,7 @@
         android:id="@+id/liveCameraSwitch"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Xem camera trực tiếp"
+        android:text="Xem &amp; tự động quay camera (lưu như hành trình)"
         android:layout_marginTop="16dp" />
 
     <androidx.camera.view.PreviewView
