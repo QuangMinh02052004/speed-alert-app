@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.location.Geocoder
 import android.os.Bundle
 import android.provider.MediaStore
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.inputmethod.EditorInfo
@@ -82,6 +83,7 @@ class MapActivity : ComponentActivity() {
     private var searchResultMarker: Marker? = null
     private var routePolyline: Polyline? = null
     private var lastSearchedLatLng: LatLng? = null
+    private var lastRouteError: String? = null
 
     // Khi true, bản đồ tự động bám theo vị trí GPS mỗi lần cập nhật. Tạm tắt
     // khi tìm kiếm/chỉ đường một nơi khác, bật lại qua nút "Vị trí của tôi".
@@ -207,7 +209,11 @@ class MapActivity : ComponentActivity() {
         scope.launch {
             val result = fetchRoute(startLat, startLon, dest.latitude, dest.longitude)
             if (result == null) {
-                Toast.makeText(this@MapActivity, "Không tính được đường đi, thử lại sau", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this@MapActivity,
+                    "Không tính được đường đi (${lastRouteError ?: "không rõ lý do"})",
+                    Toast.LENGTH_LONG
+                ).show()
                 return@launch
             }
 
@@ -244,11 +250,26 @@ class MapActivity : ComponentActivity() {
             val connection = URL(url).openConnection() as HttpURLConnection
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
-            val responseText = connection.inputStream.bufferedReader().use { it.readText() }
+            connection.setRequestProperty("User-Agent", "SpeedAlertApp/1.0 (Android; +https://github.com/QuangMinh02052004/speed-alert-app)")
+
+            val responseCode = connection.responseCode
+            val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
+            val responseText = stream?.bufferedReader()?.use { it.readText() } ?: ""
             connection.disconnect()
 
+            Log.d("MapActivity", "OSRM url=$url code=$responseCode body=${responseText.take(300)}")
+
+            if (responseCode !in 200..299) {
+                lastRouteError = "HTTP $responseCode"
+                return@withContext null
+            }
+
             val json = JSONObject(responseText)
-            if (json.optString("code") != "Ok") return@withContext null
+            val code = json.optString("code")
+            if (code != "Ok") {
+                lastRouteError = "$code: ${json.optString("message")}"
+                return@withContext null
+            }
 
             val route = json.getJSONArray("routes").getJSONObject(0)
             val distanceMeters = route.getDouble("distance")
@@ -278,6 +299,8 @@ class MapActivity : ComponentActivity() {
 
             RouteResult(points, distanceMeters, durationSeconds, steps)
         } catch (e: Exception) {
+            Log.e("MapActivity", "Loi goi OSRM", e)
+            lastRouteError = "${e.javaClass.simpleName}: ${e.message}"
             null
         }
     }
