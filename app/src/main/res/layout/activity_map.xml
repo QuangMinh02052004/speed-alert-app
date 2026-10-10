@@ -45,4 +45,13 @@
         android:layout_margin="16dp"
         android:text="📍 Vị trí của tôi" />
 
+    <Button
+        android:id="@+id/directionsButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="16dp"
+        android:text="Chỉ đường"
+        android:visibility="gone" />
+
 </FrameLayout>

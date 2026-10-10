@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.AlertDialog
 import android.content.ContentValues
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.location.Geocoder
 import android.os.Bundle
 import android.provider.MediaStore
@@ -34,23 +35,38 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import org.maplibre.android.MapLibre
 import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
+import org.maplibre.android.annotations.Polyline
+import org.maplibre.android.annotations.PolylineOptions
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
+import java.net.HttpURLConnection
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/** Kết quả định tuyến: toạ độ đường đi, quãng đường, thời gian ước tính, các bước rẽ. */
+private data class RouteResult(
+    val points: List<LatLng>,
+    val distanceMeters: Double,
+    val durationSeconds: Double,
+    val steps: List<String>
+)
+
 /**
  * Màn hình bản đồ: OpenFreeMap (phủ Việt Nam, miễn phí), chấm vị trí hiện
- * tại TỰ ĐỘNG BÁM theo GPS (có thể tạm tắt khi đang xem kết quả tìm kiếm,
- * bật lại bằng nút "Vị trí của tôi"), thanh TÌM KIẾM ĐỊA CHỈ kiểu Google Maps
- * ở trên cùng, và các camera bắn tốc độ đã lưu.
+ * tại TỰ ĐỘNG BÁM theo GPS (tạm tắt khi tìm kiếm/chỉ đường, bật lại bằng nút
+ * "Vị trí của tôi"), thanh TÌM KIẾM ĐỊA CHỈ, nút CHỈ ĐƯỜNG (dùng OSRM - dịch
+ * vụ định tuyến miễn phí, hồ sơ "ô tô" chung vì không có hồ sơ xe máy miễn
+ * phí - CHƯA loại trừ cao tốc cấm xe máy, có cảnh báo rõ trong hộp thoại),
+ * và các camera bắn tốc độ đã lưu.
  *
  * Chạm vào chấm vị trí mở bảng thông tin: tốc độ, giới hạn tốc độ, tên
  * đường, địa chỉ, và công tắc "Xem & tự động quay camera" (quay + lưu video
@@ -60,13 +76,15 @@ class MapActivity : ComponentActivity() {
 
     private lateinit var mapView: MapView
     private lateinit var mapLibreMap: MapLibreMap
+    private lateinit var directionsButton: Button
     private val scope = CoroutineScope(Dispatchers.Main)
     private var myLocationMarker: Marker? = null
     private var searchResultMarker: Marker? = null
+    private var routePolyline: Polyline? = null
+    private var lastSearchedLatLng: LatLng? = null
 
     // Khi true, bản đồ tự động bám theo vị trí GPS mỗi lần cập nhật. Tạm tắt
-    // khi người dùng tìm kiếm 1 địa chỉ khác, để không bị nhảy camera ngược
-    // lại vị trí hiện tại ngay sau khi vừa tìm xong.
+    // khi tìm kiếm/chỉ đường một nơi khác, bật lại qua nút "Vị trí của tôi".
     private var followEnabled = true
 
     private var liveCameraProvider: ProcessCameraProvider? = null
@@ -97,6 +115,7 @@ class MapActivity : ComponentActivity() {
         val searchInput = findViewById<EditText>(R.id.searchInput)
         val searchButton = findViewById<Button>(R.id.searchButton)
         val myLocationButton = findViewById<Button>(R.id.myLocationButton)
+        directionsButton = findViewById(R.id.directionsButton)
 
         searchButton.setOnClickListener { performSearch(searchInput.text.toString()) }
         searchInput.setOnEditorActionListener { _, actionId, _ ->
@@ -108,6 +127,7 @@ class MapActivity : ComponentActivity() {
             }
         }
         myLocationButton.setOnClickListener { recenterOnMyLocation() }
+        directionsButton.setOnClickListener { requestDirections() }
 
         mapView = findViewById(R.id.mapView)
         mapView.onCreate(savedInstanceState)
@@ -161,12 +181,134 @@ class MapActivity : ComponentActivity() {
 
             followEnabled = false
             val latLng = LatLng(address.latitude, address.longitude)
+            lastSearchedLatLng = latLng
+            directionsButton.visibility = View.VISIBLE
+
             searchResultMarker?.let { mapLibreMap.removeMarker(it) }
             searchResultMarker = mapLibreMap.addMarker(
                 MarkerOptions().position(latLng).title(query)
             )
             mapLibreMap.easeCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16.0), 1000)
         }
+    }
+
+    /** Tính đường đi từ vị trí hiện tại tới điểm đã tìm kiếm (OSRM, hồ sơ ô tô chung). */
+    private fun requestDirections() {
+        val dest = lastSearchedLatLng ?: return
+        val state = SpeedState.state.value
+        val startLat = state.lastLat
+        val startLon = state.lastLon
+        if (startLat == null || startLon == null) {
+            Toast.makeText(this, "Chưa xác định được vị trí hiện tại của bạn", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        Toast.makeText(this, "Đang tính đường đi...", Toast.LENGTH_SHORT).show()
+        scope.launch {
+            val result = fetchRoute(startLat, startLon, dest.latitude, dest.longitude)
+            if (result == null) {
+                Toast.makeText(this@MapActivity, "Không tính được đường đi, thử lại sau", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            routePolyline?.let { mapLibreMap.removePolyline(it) }
+            routePolyline = mapLibreMap.addPolyline(
+                PolylineOptions().addAll(result.points).color(Color.parseColor("#1E88E5")).width(6f)
+            )
+            followEnabled = false
+
+            val distanceKm = result.distanceMeters / 1000.0
+            val durationMin = (result.durationSeconds / 60.0).toInt()
+            val header = "Quãng đường: %.1f km - Thời gian ước tính: %d phút\n\n".format(distanceKm, durationMin) +
+                "⚠ Tuyến đường tính theo dữ liệu đường ô tô chung (chưa có hồ sơ riêng cho xe máy miễn phí) " +
+                "- có thể gồm đoạn cao tốc cấm xe máy, hãy chú ý biển báo thực tế.\n\n"
+
+            AlertDialog.Builder(this@MapActivity)
+                .setTitle("Chỉ đường")
+                .setMessage(header + result.steps.joinToString("\n"))
+                .setPositiveButton("Đóng", null)
+                .show()
+        }
+    }
+
+    /** Gọi API định tuyến công cộng OSRM (miễn phí, không cần API key). */
+    private suspend fun fetchRoute(
+        startLat: Double,
+        startLon: Double,
+        endLat: Double,
+        endLon: Double
+    ): RouteResult? = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://router.project-osrm.org/route/v1/driving/" +
+                "$startLon,$startLat;$endLon,$endLat?overview=full&geometries=geojson&steps=true"
+            val connection = URL(url).openConnection() as HttpURLConnection
+            connection.connectTimeout = 10000
+            connection.readTimeout = 10000
+            val responseText = connection.inputStream.bufferedReader().use { it.readText() }
+            connection.disconnect()
+
+            val json = JSONObject(responseText)
+            if (json.optString("code") != "Ok") return@withContext null
+
+            val route = json.getJSONArray("routes").getJSONObject(0)
+            val distanceMeters = route.getDouble("distance")
+            val durationSeconds = route.getDouble("duration")
+
+            val coordsArray = route.getJSONObject("geometry").getJSONArray("coordinates")
+            val points = mutableListOf<LatLng>()
+            for (i in 0 until coordsArray.length()) {
+                val pair = coordsArray.getJSONArray(i)
+                points.add(LatLng(pair.getDouble(1), pair.getDouble(0)))
+            }
+
+            val steps = mutableListOf<String>()
+            val legs = route.getJSONArray("legs")
+            for (i in 0 until legs.length()) {
+                val stepsArray = legs.getJSONObject(i).getJSONArray("steps")
+                for (j in 0 until stepsArray.length()) {
+                    val step = stepsArray.getJSONObject(j)
+                    val maneuver = step.getJSONObject("maneuver")
+                    val type = maneuver.optString("type")
+                    val modifier = maneuver.optString("modifier", "")
+                    val roadName = step.optString("name", "")
+                    val stepDistance = step.optDouble("distance", 0.0)
+                    steps.add(describeManeuver(type, modifier, roadName, stepDistance))
+                }
+            }
+
+            RouteResult(points, distanceMeters, durationSeconds, steps)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Dịch kiểu rẽ của OSRM (tiếng Anh) sang mô tả tiếng Việt ngắn gọn. */
+    private fun describeManeuver(type: String, modifier: String, roadName: String, distanceMeters: Double): String {
+        val action = when (type) {
+            "depart" -> "Xuất phát"
+            "arrive" -> "Đã đến nơi"
+            "turn" -> when (modifier) {
+                "left" -> "Rẽ trái"
+                "right" -> "Rẽ phải"
+                "sharp left" -> "Rẽ gắt trái"
+                "sharp right" -> "Rẽ gắt phải"
+                "slight left" -> "Rẽ nhẹ trái"
+                "slight right" -> "Rẽ nhẹ phải"
+                "uturn" -> "Quay đầu"
+                else -> "Rẽ"
+            }
+            "continue" -> "Đi thẳng"
+            "merge" -> "Nhập làn"
+            "roundabout", "rotary" -> "Vào vòng xuyến"
+            "exit roundabout", "exit rotary" -> "Ra khỏi vòng xuyến"
+            "fork" -> "Tại ngã ba, đi theo nhánh phù hợp"
+            "end of road" -> "Cuối đường, rẽ theo hướng phù hợp"
+            "new name" -> "Tiếp tục đi"
+            else -> "Đi tiếp"
+        }
+        val roadPart = if (roadName.isNotBlank()) " vào $roadName" else ""
+        val distPart = if (distanceMeters > 0) " (${distanceMeters.toInt()}m)" else ""
+        return "• $action$roadPart$distPart"
     }
 
     /** Bật lại chế độ tự động bám vị trí và đưa camera về ngay vị trí hiện tại. */
