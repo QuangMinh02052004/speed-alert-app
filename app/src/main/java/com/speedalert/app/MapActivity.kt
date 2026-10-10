@@ -9,6 +9,9 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
+import android.view.inputmethod.EditorInfo
+import android.widget.Button
+import android.widget.EditText
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
@@ -44,14 +47,14 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Màn hình bản đồ: hiển thị bản đồ nền (OpenFreeMap, phủ đầy đủ Việt Nam,
- * miễn phí không cần API key), chấm vị trí hiện tại TỰ ĐỘNG BÁM theo GPS,
- * và các camera bắn tốc độ đã lưu trước đó.
+ * Màn hình bản đồ: OpenFreeMap (phủ Việt Nam, miễn phí), chấm vị trí hiện
+ * tại TỰ ĐỘNG BÁM theo GPS (có thể tạm tắt khi đang xem kết quả tìm kiếm,
+ * bật lại bằng nút "Vị trí của tôi"), thanh TÌM KIẾM ĐỊA CHỈ kiểu Google Maps
+ * ở trên cùng, và các camera bắn tốc độ đã lưu.
  *
- * Chạm vào chấm vị trí mở bảng thông tin: tốc độ hiện tại, giới hạn tốc độ,
- * tên đường, địa chỉ, và công tắc "Xem & tự động quay camera" - khi bật sẽ
- * hoạt động như camera hành trình thực sự: quay + lưu video (qua MediaStore,
- * vào Movies/SpeedAlert) ngay trong lúc xem, không chỉ xem suông.
+ * Chạm vào chấm vị trí mở bảng thông tin: tốc độ, giới hạn tốc độ, tên
+ * đường, địa chỉ, và công tắc "Xem & tự động quay camera" (quay + lưu video
+ * như camera hành trình ngay trong lúc xem).
  */
 class MapActivity : ComponentActivity() {
 
@@ -59,6 +62,12 @@ class MapActivity : ComponentActivity() {
     private lateinit var mapLibreMap: MapLibreMap
     private val scope = CoroutineScope(Dispatchers.Main)
     private var myLocationMarker: Marker? = null
+    private var searchResultMarker: Marker? = null
+
+    // Khi true, bản đồ tự động bám theo vị trí GPS mỗi lần cập nhật. Tạm tắt
+    // khi người dùng tìm kiếm 1 địa chỉ khác, để không bị nhảy camera ngược
+    // lại vị trí hiện tại ngay sau khi vừa tìm xong.
+    private var followEnabled = true
 
     private var liveCameraProvider: ProcessCameraProvider? = null
     private var liveRecording: Recording? = null
@@ -84,6 +93,21 @@ class MapActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         MapLibre.getInstance(this)
         setContentView(R.layout.activity_map)
+
+        val searchInput = findViewById<EditText>(R.id.searchInput)
+        val searchButton = findViewById<Button>(R.id.searchButton)
+        val myLocationButton = findViewById<Button>(R.id.myLocationButton)
+
+        searchButton.setOnClickListener { performSearch(searchInput.text.toString()) }
+        searchInput.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                performSearch(searchInput.text.toString())
+                true
+            } else {
+                false
+            }
+        }
+        myLocationButton.setOnClickListener { recenterOnMyLocation() }
 
         mapView = findViewById(R.id.mapView)
         mapView.onCreate(savedInstanceState)
@@ -113,7 +137,51 @@ class MapActivity : ComponentActivity() {
         }
     }
 
-    /** Theo dõi vị trí hiện tại và TỰ ĐỘNG đưa camera bản đồ bám theo (auto-follow). */
+    /** Tìm địa chỉ (geocoding thuận) và đưa bản đồ tới đó, giống thanh tìm kiếm Google Maps. */
+    private fun performSearch(rawQuery: String) {
+        val query = rawQuery.trim()
+        if (query.isEmpty() || !::mapLibreMap.isInitialized) return
+
+        scope.launch {
+            val address = withContext(Dispatchers.IO) {
+                try {
+                    if (!Geocoder.isPresent()) return@withContext null
+                    val geocoder = Geocoder(this@MapActivity, Locale("vi", "VN"))
+                    @Suppress("DEPRECATION")
+                    geocoder.getFromLocationName(query, 1)?.firstOrNull()
+                } catch (e: Exception) {
+                    null
+                }
+            }
+
+            if (address == null) {
+                Toast.makeText(this@MapActivity, "Không tìm thấy địa chỉ \"$query\"", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            followEnabled = false
+            val latLng = LatLng(address.latitude, address.longitude)
+            searchResultMarker?.let { mapLibreMap.removeMarker(it) }
+            searchResultMarker = mapLibreMap.addMarker(
+                MarkerOptions().position(latLng).title(query)
+            )
+            mapLibreMap.easeCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16.0), 1000)
+        }
+    }
+
+    /** Bật lại chế độ tự động bám vị trí và đưa camera về ngay vị trí hiện tại. */
+    private fun recenterOnMyLocation() {
+        followEnabled = true
+        if (!::mapLibreMap.isInitialized) return
+        val state = SpeedState.state.value
+        val lat = state.lastLat
+        val lon = state.lastLon
+        if (lat != null && lon != null) {
+            mapLibreMap.easeCamera(CameraUpdateFactory.newLatLngZoom(LatLng(lat, lon), 16.0), 800)
+        }
+    }
+
+    /** Theo dõi vị trí hiện tại; tự động đưa camera bám theo nếu followEnabled. */
     private fun observeMyLocation(map: MapLibreMap) {
         scope.launch {
             SpeedState.state.collect { state ->
@@ -125,7 +193,9 @@ class MapActivity : ComponentActivity() {
                     myLocationMarker = map.addMarker(
                         MarkerOptions().position(latLng).title(MY_LOCATION_TITLE)
                     )
-                    map.easeCamera(CameraUpdateFactory.newLatLng(latLng), 800)
+                    if (followEnabled) {
+                        map.easeCamera(CameraUpdateFactory.newLatLng(latLng), 800)
+                    }
                 }
             }
         }
