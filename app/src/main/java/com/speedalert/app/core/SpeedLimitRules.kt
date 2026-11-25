@@ -46,9 +46,7 @@ object SpeedLimitRules {
         // PLO 01/2025: Võ Văn Kiệt cho phép xe máy tối đa 50 km/h.
         Corridor(listOf("võ văn kiệt"), HCM_MIN_LAT, HCM_MAX_LAT, HCM_MIN_LON, HCM_MAX_LON, 50, "Võ Văn Kiệt - xe máy 50"),
         // Sở GTVT TP.HCM: Quốc lộ 22 giới hạn xe máy 50 km/h.
-        Corridor(listOf("quốc lộ 22", "ql22", "ql.22", "xa lộ xuyên á"), HCM_MIN_LAT, HCM_MAX_LAT, HCM_MIN_LON, HCM_MAX_LON, 50, "QL22 - xe máy 50"),
-        // Phạm Văn Đồng: làn hỗn hợp điều chỉnh từ 80 xuống 60 km/h.
-        Corridor(listOf("phạm văn đồng"), HCM_MIN_LAT, HCM_MAX_LAT, HCM_MIN_LON, HCM_MAX_LON, 60, "Phạm Văn Đồng - làn hỗn hợp 60")
+        Corridor(listOf("quốc lộ 22", "ql22", "ql.22", "xa lộ xuyên á"), HCM_MIN_LAT, HCM_MAX_LAT, HCM_MIN_LON, HCM_MAX_LON, 50, "QL22 - xe máy 50")
     )
 
     private fun normalize(name: String) = name.lowercase().trim().removePrefix("đường ").removePrefix("đại lộ ").trim()
@@ -73,6 +71,9 @@ object SpeedLimitRules {
         }
         if (!seg.motorcycleAllowed && vehicle != VehicleType.CAR) {
             return SpeedLimitInfo(null, false, "Làn/đường này cấm xe máy - đi đường song hành")
+        }
+        if (vehicle != VehicleType.CAR) {
+            parseMaxspeed(seg.maxspeedMotoRaw)?.let { return SpeedLimitInfo(minOf(it, if (vehicle == VehicleType.MOPED) 40 else 70), true) }
         }
         if (vehicle == VehicleType.MOTORBIKE) {
             corridorLimit(seg)?.let { return SpeedLimitInfo(it, true) }

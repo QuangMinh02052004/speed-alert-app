@@ -328,14 +328,13 @@ class RoadDataManager(context: Context, private val scope: CoroutineScope) {
 
             var score = proj.distance
             // Xe máy: phần đường cấm xe máy (làn chính/cầu vượt...) chỉ chọn khi không còn đường nào khác gần.
-            if (vehicle != VehicleType.CAR && ps.seg.motorcycleNo) score += 35.0
+            if (vehicle != VehicleType.CAR && (ps.seg.motorcycleNo || !ps.seg.motorcycleAllowed)) score += 35.0
             if (bearing != null && speedKmh > 8) {
                 var diff = GeoUtils.angleDiff(bearing.toDouble(), proj.bearing)
                 if (!ps.seg.oneway) diff = minOf(diff, 180 - diff)
                 score += diff / 90.0 * 30.0
                 if (ps.seg.oneway && diff > 100) score += 40.0
             }
-            if (!ps.seg.motorcycleAllowed && AppSettings.vehicle.value != VehicleType.CAR) score += 35.0
             val result = MatchResult(ps.seg, proj.distance, proj.point, proj.bearing)
             if (score < bestScore) {
                 bestScore = score
