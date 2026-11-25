@@ -9,42 +9,69 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Call APIs
+      - name: Speed limit data HCMC + Dong Nai
         run: |
           mkdir -p out
           UA="SpeedAlertApp/2.0 (Android; github.com/QuangMinh02052004/speed-alert-app)"
-          # Valhalla: Bến Thành -> Landmark 81 (xe máy), dạng gốc và dạng OSRM (có làn đường)
-          REQ='{"locations":[{"lat":10.7725,"lon":106.6980,"type":"break"},{"lat":10.7950,"lon":106.7219}],"costing":"motor_scooter","costing_options":{"motor_scooter":{"top_speed":60,"use_primary":0.6,"use_hills":0.5}},"units":"kilometers"}'
-          curl -s -m 40 -A "$UA" -H "Content-Type: application/json" -X POST https://valhalla1.openstreetmap.de/route -d "$REQ" -o out/valhalla_native.json -w "valhalla_native %{http_code}\n" | tee -a out/status.txt
-          REQ2=$(echo "$REQ" | python3 -c "import json,sys;d=json.load(sys.stdin);d['format']='osrm';d['banner_instructions']=True;print(json.dumps(d))")
-          curl -s -m 40 -A "$UA" -H "Content-Type: application/json" -X POST https://valhalla1.openstreetmap.de/route -d "$REQ2" -o out/valhalla_osrm.json -w "valhalla_osrm %{http_code}\n" | tee -a out/status.txt
-          curl -s -m 40 -A "$UA" "https://router.project-osrm.org/route/v1/driving/106.6980,10.7725;106.7219,10.7950?overview=full&geometries=polyline6&steps=true&exclude=motorway" -o out/osrm_exclude.json -w "osrm_exclude %{http_code}\n" | tee -a out/status.txt
-          curl -s -m 40 -A "$UA" "https://router.project-osrm.org/route/v1/driving/106.6980,10.7725;106.7219,10.7950?overview=full&geometries=polyline6&steps=true" -o out/osrm.json -w "osrm %{http_code}\n" | tee -a out/status.txt
-          # Overpass: 1 ô dữ liệu ở Q1 TP.HCM (giống app)
-          Q='[out:json][timeout:40];(way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|road)$"](10.75000,106.67500,10.77500,106.70000);)->.w;(node["highway"="speed_camera"](10.75000,106.67500,10.77500,106.70000);)->.c;.w out tags geom;.c out body;'
-          curl -s -m 90 -A "$UA" --data-urlencode "data=$Q" https://overpass-api.de/api/interpreter -o out/overpass.json -w "overpass %{http_code}\n" | tee -a out/status.txt
-          # Tìm kiếm
-          curl -s -m 30 -A "$UA" "https://photon.komoot.io/api/?q=ch%E1%BB%A3%20b%E1%BA%BFn%20th%C3%A0nh&limit=3&lat=10.77&lon=106.70&bbox=102.1,8.4,109.5,23.4" -o out/photon.json -w "photon %{http_code}\n" | tee -a out/status.txt
-          curl -s -m 30 -A "$UA" "https://nominatim.openstreetmap.org/search?q=ch%E1%BB%A3%20b%E1%BA%BFn%20th%C3%A0nh&format=json&limit=3&countrycodes=vn&accept-language=vi" -o out/nominatim.json -w "nominatim %{http_code}\n" | tee -a out/status.txt
-          curl -s -m 30 -o /dev/null -w "style_liberty %{http_code}\n" https://tiles.openfreemap.org/styles/liberty | tee -a out/status.txt
-          curl -s -m 30 -o /dev/null -w "style_dark %{http_code}\n" https://tiles.openfreemap.org/styles/dark | tee -a out/status.txt
-          # Thu gọn file lớn
+          # Khung bao gồm TP.HCM + Đồng Nai (cũ và sau sáp nhập)
+          BBOX="10.35,106.35,11.80,107.65"
+          Q="[out:json][timeout:300][maxsize:1073741824];way[\"highway\"~\"^(motorway|trunk|primary|secondary|motorway_link|trunk_link)$\"]($BBOX);out tags geom;"
+          for EP in https://overpass-api.de/api/interpreter https://overpass.private.coffee/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
+            curl -s -m 400 -A "$UA" --data-urlencode "data=$Q" "$EP" -o out/major.json -w "$EP %{http_code}\n" | tee -a out/status2.txt
+            python3 -c "import json;json.load(open('out/major.json'))" 2>/dev/null && break
+          done
           python3 - << 'PY'
-          import json
-          d=json.load(open('out/overpass.json'))
-          els=d.get('elements',[])
-          ways=[e for e in els if e['type']=='way']; nodes=[e for e in els if e['type']=='node']
-          tags={}
-          for w in ways:
-              for k in ('maxspeed','lanes','oneway','turn:lanes','maxspeed:motorcycle','source:maxspeed','maxspeed:type'):
-                  if k in w.get('tags',{}): tags[k]=tags.get(k,0)+1
-          json.dump({'ways':len(ways),'cameras':len(nodes),'tag_counts':tags,'sample_way':ways[0] if ways else None,'sample_cam':nodes[0] if nodes else None,'maxspeed_values':sorted({w['tags'].get('maxspeed') for w in ways if 'maxspeed' in w.get('tags',{})})},open('out/overpass_summary.json','w'),ensure_ascii=False,indent=1)
+          import json, math, re, collections
+          d=json.load(open('out/major.json'))
+          ways=[e for e in d['elements'] if e['type']=='way']
+          def length(g):
+              L=0
+              for a,b in zip(g,g[1:]):
+                  dl=math.radians(b['lat']-a['lat']); do=math.radians(b['lon']-a['lon'])
+                  x=math.sin(dl/2)**2+math.cos(math.radians(a['lat']))*math.cos(math.radians(b['lat']))*math.sin(do/2)**2
+                  L+=2*6371000*math.asin(math.sqrt(x))
+              return L
+          def norm_ref(r):
+              r=(r or '').upper().replace('.','').replace(' ','')
+              return r
+          groups={
+            'QL1A':lambda t: re.search(r'(^|;)(QL)?1A?($|;)',norm_ref(t.get('ref'))) or 'quốc lộ 1' in t.get('name','').lower(),
+            'QL20':lambda t: re.search(r'(^|;)(QL)?20($|;)',norm_ref(t.get('ref'))) or 'quốc lộ 20' in t.get('name','').lower(),
+            'QL51':lambda t: re.search(r'(^|;)(QL)?51($|;)',norm_ref(t.get('ref'))) or 'quốc lộ 51' in t.get('name','').lower(),
+            'QL52':lambda t: re.search(r'(^|;)(QL)?52($|;)',norm_ref(t.get('ref'))),
+            'XaLoHaNoi':lambda t: 'xa lộ hà nội' in (t.get('name','')+' '+t.get('alt_name','')+' '+t.get('old_name','')).lower(),
+            'QL13':lambda t: re.search(r'(^|;)(QL)?13($|;)',norm_ref(t.get('ref'))),
+            'QL22':lambda t: re.search(r'(^|;)(QL)?22($|;)',norm_ref(t.get('ref'))),
+            'CaoToc':lambda t: t.get('highway')=='motorway',
+          }
+          out={}
+          for gname,f in groups.items():
+              tot=0; by=collections.Counter(); moto=collections.Counter(); names=collections.Counter(); samples=[]
+              for w in ways:
+                  t=w.get('tags',{})
+                  if not f(t): continue
+                  L=length(w['geometry']); tot+=L
+                  ms=t.get('maxspeed','(không có)'); by[ms]+=L
+                  if 'maxspeed:motorcycle' in t: moto[t['maxspeed:motorcycle']]+=L
+                  names[(t.get('name') or t.get('ref') or '?')]+=L
+                  if 'maxspeed' in t and len(samples)<12:
+                      g=w['geometry']; mid=g[len(g)//2]
+                      samples.append({'id':w['id'],'name':t.get('name'),'ref':t.get('ref'),'maxspeed':t['maxspeed'],'moto':t.get('maxspeed:motorcycle'),'lanes':t.get('lanes'),'mid':[round(mid['lat'],5),round(mid['lon'],5)]})
+              out[gname]={'total_km':round(tot/1000,1),'maxspeed_km':{k:round(v/1000,1) for k,v in by.most_common()},'moto_km':{k:round(v/1000,1) for k,v in moto.most_common()},'top_names':[n for n,_ in names.most_common(8)],'samples':samples}
+          # Tổng thể đường chính
+          tot=sum(length(w['geometry']) for w in ways); tagged=sum(length(w['geometry']) for w in ways if 'maxspeed' in w.get('tags',{}))
+          out['_all_major']={'ways':len(ways),'total_km':round(tot/1000),'with_maxspeed_km':round(tagged/1000),'pct':round(100*tagged/max(tot,1),1)}
+          json.dump(out,open('out/speed_routes.json','w'),ensure_ascii=False,indent=1)
+          # Bảng gọn để nhúng vào app: mọi way chính có maxspeed (id, giới hạn)
+          rows=[[w['id'],w['tags'].get('maxspeed'),w['tags'].get('maxspeed:motorcycle','')] for w in ways if 'maxspeed' in w.get('tags',{})]
+          json.dump(rows,open('out/major_maxspeed_ids.json','w'))
           PY
-          rm -f out/overpass.json
+          rm -f out/major.json
       - name: Save results
         run: |
           git config user.email "ci-bot@users.noreply.github.com"
           git config user.name "CI Bot"
+          git pull -q --rebase || true
           git add -f out
-          git commit -m "probe results [skip ci]" || true
+          git commit -m "probe results 2 [skip ci]" || true
           git push || true
