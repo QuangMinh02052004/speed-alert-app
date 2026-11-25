@@ -10,64 +10,79 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Speed limit data HCMC + Dong Nai
+        continue-on-error: true
         run: |
           mkdir -p out
+          cat > fetch.py << 'PY'
+          import json, math, re, collections, subprocess, time, sys
           UA="SpeedAlertApp/2.0 (Android; github.com/QuangMinh02052004/speed-alert-app)"
-          # Khung bao gồm TP.HCM + Đồng Nai (cũ và sau sáp nhập)
-          BBOX="10.35,106.35,11.80,107.65"
-          Q="[out:json][timeout:300][maxsize:1073741824];way[\"highway\"~\"^(motorway|trunk|primary|secondary|motorway_link|trunk_link)$\"]($BBOX);out tags geom;"
-          for EP in https://overpass-api.de/api/interpreter https://overpass.private.coffee/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
-            curl -s -m 400 -A "$UA" --data-urlencode "data=$Q" "$EP" -o out/major.json -w "$EP %{http_code}\n" | tee -a out/status2.txt
-            python3 -c "import json;json.load(open('out/major.json'))" 2>/dev/null && break
-          done
-          python3 - << 'PY'
-          import json, math, re, collections
-          d=json.load(open('out/major.json'))
-          ways=[e for e in d['elements'] if e['type']=='way']
+          EPS=["https://overpass-api.de/api/interpreter","https://overpass.private.coffee/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter"]
+          log=open('out/fetch_log.txt','w')
+          ways={}
+          S,W,N,E=10.35,106.35,11.80,107.65
+          ny,nx=4,4
+          for iy in range(ny):
+            for ix in range(nx):
+              s=S+(N-S)*iy/ny; n=S+(N-S)*(iy+1)/ny; w=W+(E-W)*ix/nx; e=W+(E-W)*(ix+1)/nx
+              q=f'[out:json][timeout:120];way["highway"~"^(motorway|trunk|primary|secondary|motorway_link|trunk_link)$"]({s:.4f},{w:.4f},{n:.4f},{e:.4f});out tags geom;'
+              ok=False
+              for ep in EPS:
+                r=subprocess.run(["curl","-s","-m","180","-A",UA,"--data-urlencode","data="+q,ep],capture_output=True)
+                try:
+                  d=json.loads(r.stdout)
+                  for el in d.get('elements',[]):
+                    if el['type']=='way': ways[el['id']]=el
+                  log.write(f"tile {iy},{ix} ok {ep} total={len(ways)}\n"); ok=True; break
+                except Exception as ex:
+                  log.write(f"tile {iy},{ix} FAIL {ep}: {r.stdout[:200]!r}\n")
+                  time.sleep(5)
+              time.sleep(2)
+          ways=list(ways.values())
           def length(g):
-              L=0
-              for a,b in zip(g,g[1:]):
-                  dl=math.radians(b['lat']-a['lat']); do=math.radians(b['lon']-a['lon'])
-                  x=math.sin(dl/2)**2+math.cos(math.radians(a['lat']))*math.cos(math.radians(b['lat']))*math.sin(do/2)**2
-                  L+=2*6371000*math.asin(math.sqrt(x))
-              return L
-          def norm_ref(r):
-              r=(r or '').upper().replace('.','').replace(' ','')
-              return r
+            L=0
+            for a,b in zip(g,g[1:]):
+              dl=math.radians(b['lat']-a['lat']); do=math.radians(b['lon']-a['lon'])
+              x=math.sin(dl/2)**2+math.cos(math.radians(a['lat']))*math.cos(math.radians(b['lat']))*math.sin(do/2)**2
+              L+=2*6371000*math.asin(math.sqrt(x))
+            return L
+          def nref(t): return (t.get('ref') or '').upper().replace('.','').replace(' ','')
+          def refhas(t,num): return re.search(r'(^|;)(QL)?'+num+r'($|;)',nref(t)) is not None
+          def nm(t): return (t.get('name','')+' '+t.get('alt_name','')+' '+t.get('old_name','')).lower()
           groups={
-            'QL1A':lambda t: re.search(r'(^|;)(QL)?1A?($|;)',norm_ref(t.get('ref'))) or 'quốc lộ 1' in t.get('name','').lower(),
-            'QL20':lambda t: re.search(r'(^|;)(QL)?20($|;)',norm_ref(t.get('ref'))) or 'quốc lộ 20' in t.get('name','').lower(),
-            'QL51':lambda t: re.search(r'(^|;)(QL)?51($|;)',norm_ref(t.get('ref'))) or 'quốc lộ 51' in t.get('name','').lower(),
-            'QL52':lambda t: re.search(r'(^|;)(QL)?52($|;)',norm_ref(t.get('ref'))),
-            'XaLoHaNoi':lambda t: 'xa lộ hà nội' in (t.get('name','')+' '+t.get('alt_name','')+' '+t.get('old_name','')).lower(),
-            'QL13':lambda t: re.search(r'(^|;)(QL)?13($|;)',norm_ref(t.get('ref'))),
-            'QL22':lambda t: re.search(r'(^|;)(QL)?22($|;)',norm_ref(t.get('ref'))),
-            'CaoToc':lambda t: t.get('highway')=='motorway',
+            'QL1 (1A)':lambda t: refhas(t,'1A?') or nm(t).strip().startswith('quốc lộ 1 ') or nm(t).strip()=='quốc lộ 1' or 'quốc lộ 1a' in nm(t),
+            'QL20':lambda t: refhas(t,'20') or 'quốc lộ 20' in nm(t),
+            'QL51':lambda t: refhas(t,'51') or 'quốc lộ 51' in nm(t),
+            'QL52 / Xa lộ Hà Nội / Võ Nguyên Giáp':lambda t: refhas(t,'52') or 'xa lộ hà nội' in nm(t) or 'võ nguyên giáp' in nm(t),
+            'QL13':lambda t: refhas(t,'13') or 'quốc lộ 13' in nm(t),
+            'QL22':lambda t: refhas(t,'22') or 'quốc lộ 22' in nm(t),
+            'QL1K':lambda t: refhas(t,'1K') or 'quốc lộ 1k' in nm(t),
+            'Võ Văn Kiệt':lambda t: 'võ văn kiệt' in nm(t),
+            'Mai Chí Thọ':lambda t: 'mai chí thọ' in nm(t),
+            'Phạm Văn Đồng':lambda t: 'phạm văn đồng' in nm(t),
+            'Nguyễn Văn Linh':lambda t: 'nguyễn văn linh' in nm(t),
+            'Cao tốc (motorway)':lambda t: t.get('highway')=='motorway',
           }
           out={}
-          for gname,f in groups.items():
-              tot=0; by=collections.Counter(); moto=collections.Counter(); names=collections.Counter(); samples=[]
-              for w in ways:
-                  t=w.get('tags',{})
-                  if not f(t): continue
-                  L=length(w['geometry']); tot+=L
-                  ms=t.get('maxspeed','(không có)'); by[ms]+=L
-                  if 'maxspeed:motorcycle' in t: moto[t['maxspeed:motorcycle']]+=L
-                  names[(t.get('name') or t.get('ref') or '?')]+=L
-                  if 'maxspeed' in t and len(samples)<12:
-                      g=w['geometry']; mid=g[len(g)//2]
-                      samples.append({'id':w['id'],'name':t.get('name'),'ref':t.get('ref'),'maxspeed':t['maxspeed'],'moto':t.get('maxspeed:motorcycle'),'lanes':t.get('lanes'),'mid':[round(mid['lat'],5),round(mid['lon'],5)]})
-              out[gname]={'total_km':round(tot/1000,1),'maxspeed_km':{k:round(v/1000,1) for k,v in by.most_common()},'moto_km':{k:round(v/1000,1) for k,v in moto.most_common()},'top_names':[n for n,_ in names.most_common(8)],'samples':samples}
-          # Tổng thể đường chính
-          tot=sum(length(w['geometry']) for w in ways); tagged=sum(length(w['geometry']) for w in ways if 'maxspeed' in w.get('tags',{}))
-          out['_all_major']={'ways':len(ways),'total_km':round(tot/1000),'with_maxspeed_km':round(tagged/1000),'pct':round(100*tagged/max(tot,1),1)}
+          for g,f in groups.items():
+            tot=0; by=collections.Counter(); moto=collections.Counter(); motono=0; samples=[]
+            for w in ways:
+              t=w.get('tags',{})
+              if not f(t): continue
+              L=length(w['geometry']); tot+=L
+              by[t.get('maxspeed','(không có)')]+=L
+              if 'maxspeed:motorcycle' in t: moto[t['maxspeed:motorcycle']]+=L
+              if t.get('motorcycle')=='no': motono+=L
+              if 'maxspeed' in t and len(samples)<15:
+                gg=w['geometry']; mid=gg[len(gg)//2]
+                samples.append({'id':w['id'],'name':t.get('name'),'ref':t.get('ref'),'hw':t.get('highway'),'maxspeed':t['maxspeed'],'moto':t.get('maxspeed:motorcycle'),'motorcycle':t.get('motorcycle'),'lanes':t.get('lanes'),'mid':[round(mid['lat'],5),round(mid['lon'],5)]})
+            out[g]={'total_km':round(tot/1000,1),'maxspeed_km':{k:round(v/1000,1) for k,v in by.most_common()},'moto_km':{k:round(v/1000,1) for k,v in moto.most_common()},'motorcycle_no_km':round(motono/1000,1),'samples':samples}
+          tot=sum(length(w['geometry']) for w in ways); tg=sum(length(w['geometry']) for w in ways if 'maxspeed' in w.get('tags',{}))
+          out['_all_major']={'ways':len(ways),'total_km':round(tot/1000),'with_maxspeed_km':round(tg/1000),'pct':round(100*tg/max(tot,1),1)}
           json.dump(out,open('out/speed_routes.json','w'),ensure_ascii=False,indent=1)
-          # Bảng gọn để nhúng vào app: mọi way chính có maxspeed (id, giới hạn)
-          rows=[[w['id'],w['tags'].get('maxspeed'),w['tags'].get('maxspeed:motorcycle','')] for w in ways if 'maxspeed' in w.get('tags',{})]
-          json.dump(rows,open('out/major_maxspeed_ids.json','w'))
           PY
-          rm -f out/major.json
+          python3 fetch.py 2> out/fetch_err.txt || true
       - name: Save results
+        if: always()
         run: |
           git config user.email "ci-bot@users.noreply.github.com"
           git config user.name "CI Bot"
