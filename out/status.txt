@@ -1,0 +1,9 @@
+valhalla_native 200
+valhalla_osrm 200
+osrm_exclude 400
+osrm 200
+overpass 200
+photon 200
+nominatim 200
+style_liberty 200
+style_dark 200
