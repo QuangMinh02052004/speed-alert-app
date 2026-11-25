@@ -84,13 +84,9 @@ class MapActivity : ComponentActivity() {
 
     companion object {
         private const val STYLE_DAY = "https://tiles.openfreemap.org/styles/liberty"
-        private const val STYLE_NIGHT = "https://tiles.openfreemap.org/styles/dark"
 
-        /** Ban đêm (18h-6h) dùng nền tối cho đỡ chói mắt khi chạy xe. */
-        fun styleForNow(): String {
-            val h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-            return if (h >= 18 || h < 6) STYLE_NIGHT else STYLE_DAY
-        }
+        /** Luôn dùng bản đồ nền sáng (trắng) theo yêu cầu - dễ nhìn hơn nền tối. */
+        fun styleForNow(): String = STYLE_DAY
         private val DEFAULT_CENTER = LatLng(10.7769, 106.7009)
     }
 
