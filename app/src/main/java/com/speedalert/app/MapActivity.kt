@@ -83,13 +83,21 @@ import java.util.Locale
 class MapActivity : ComponentActivity() {
 
     companion object {
-        private const val STYLE_URL = "https://tiles.openfreemap.org/styles/bright"
+        private const val STYLE_DAY = "https://tiles.openfreemap.org/styles/liberty"
+        private const val STYLE_NIGHT = "https://tiles.openfreemap.org/styles/dark"
+
+        /** Ban đêm (18h-6h) dùng nền tối cho đỡ chói mắt khi chạy xe. */
+        fun styleForNow(): String {
+            val h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+            return if (h >= 18 || h < 6) STYLE_NIGHT else STYLE_DAY
+        }
         private val DEFAULT_CENTER = LatLng(10.7769, 106.7009)
     }
 
     private lateinit var mapView: MapView
     private var map: MapLibreMap? = null
     private var locationReady = false
+    private var listenersAdded = false
 
     private lateinit var searchInput: EditText
     private lateinit var resultsScroll: ScrollView
@@ -128,6 +136,7 @@ class MapActivity : ComponentActivity() {
     private var liveRecording: Recording? = null
     private var pendingPreviewView: PreviewView? = null
     private var pendingSwitch: Switch? = null
+    private var infoDialog: AlertDialog? = null
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -170,12 +179,11 @@ class MapActivity : ComponentActivity() {
                 if (it.lastLat != null && it.lastLon != null) LatLng(it.lastLat, it.lastLon) else DEFAULT_CENTER
             }
             m.moveCamera(CameraUpdateFactory.newLatLngZoom(start, 16.0))
-            m.setStyle(Style.Builder().fromUri(STYLE_URL)) { style ->
-                enableLocationComponent(style)
-                reloadCameraMarkers(force = true)
-                drawnRoute = null
-                renderNav(NavigationManager.state.value)
+            mapView.addOnDidFailLoadingMapListener {
+                // Kiểu bản đồ đêm lỗi tải -> quay về kiểu ban ngày.
+                if (m.style?.uri != STYLE_DAY) m.setStyle(Style.Builder().fromUri(STYLE_DAY)) { st -> onStyleReady(st) }
             }
+            m.setStyle(Style.Builder().fromUri(styleForNow())) { style -> onStyleReady(style) }
             m.addOnMapLongClickListener { point ->
                 selectPlace(Place("Điểm đã chọn", "Đang tra địa chỉ...", GeoPoint(point.latitude, point.longitude)), lookupAddress = true)
                 true
@@ -184,6 +192,14 @@ class MapActivity : ComponentActivity() {
 
         ensureLocationPermission()
         observeState()
+    }
+
+    private fun onStyleReady(style: Style) {
+        locationReady = false
+        enableLocationComponent(style)
+        reloadCameraMarkers(force = true)
+        drawnRoute = null
+        renderNav(NavigationManager.state.value)
     }
 
     private fun bindViews() {
@@ -273,14 +289,17 @@ class MapActivity : ComponentActivity() {
         lc.isLocationComponentEnabled = true
         lc.renderMode = RenderMode.GPS
         lc.cameraMode = CameraMode.TRACKING_GPS_NORTH
-        lc.addOnCameraTrackingChangedListener(object : OnCameraTrackingChangedListener {
-            override fun onCameraTrackingDismissed() {
-                following = false
-            }
+        if (!listenersAdded) {
+            listenersAdded = true
+            lc.addOnCameraTrackingChangedListener(object : OnCameraTrackingChangedListener {
+                override fun onCameraTrackingDismissed() {
+                    following = false
+                }
 
-            override fun onCameraTrackingChanged(currentMode: Int) {}
-        })
-        lc.addOnLocationClickListener { showLocationInfoDialog() }
+                override fun onCameraTrackingChanged(currentMode: Int) {}
+            })
+            lc.addOnLocationClickListener { showLocationInfoDialog() }
+        }
         locationReady = true
         SpeedState.state.value.location?.let { lc.forceLocationUpdate(it) }
     }
@@ -626,28 +645,19 @@ class MapActivity : ComponentActivity() {
         infoRoad.text = "Đoạn đường: ${s.roadName.ifBlank { "không rõ" }}"
         infoAddress.text = "Địa chỉ: đang tra cứu..."
 
+        livePreview.visibility = View.GONE
+        liveSwitch.text = "Mở camera hành trình & tự động quay"
         liveSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
-                livePreview.visibility = View.VISIBLE
-                val needed = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
-                if (needed.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }) {
-                    startLiveRecording(livePreview)
-                } else {
-                    pendingPreviewView = livePreview
-                    pendingSwitch = liveSwitch
-                    cameraPermissionLauncher.launch(needed)
-                }
-            } else {
-                livePreview.visibility = View.GONE
-                stopLiveRecording()
+                infoDialog?.dismiss()
+                DashcamActivity.open(this, autoStart = true)
             }
         }
 
-        AlertDialog.Builder(this)
+        infoDialog = AlertDialog.Builder(this)
             .setTitle("Vị trí của bạn")
             .setView(view)
-            .setPositiveButton("Đóng") { _, _ -> stopLiveRecording() }
-            .setOnCancelListener { stopLiveRecording() }
+            .setPositiveButton("Đóng", null)
             .show()
 
         lifecycleScope.launch {

@@ -107,7 +107,6 @@ fun HomeScreen(permissionMessage: String) {
     val context = LocalContext.current
     val state by SpeedState.state.collectAsState()
     val running by SpeedState.serviceRunning.collectAsState()
-    val vehicle by AppSettings.vehicle.collectAsState()
     val voice by AppSettings.voiceEnabled.collectAsState()
 
     val bg = when {
@@ -196,28 +195,10 @@ fun HomeScreen(permissionMessage: String) {
         ) { Text("🎥  Camera hành trình", fontSize = 16.sp) }
 
         Spacer(Modifier.height(20.dp))
-        Text("Loại xe (để tính giới hạn tốc độ & tuyến đường)", fontSize = 14.sp, color = fg)
-        Spacer(Modifier.height(6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-            VehicleType.values().forEach { type ->
-                val label = when (type) {
-                    VehicleType.MOTORBIKE -> "Xe máy"
-                    VehicleType.MOPED -> "Gắn máy ≤50cc"
-                    VehicleType.CAR -> "Ô tô"
-                }
-                if (type == vehicle) {
-                    Button(
-                        onClick = {}, modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = Green)
-                    ) { Text(label, fontSize = 12.sp, maxLines = 1) }
-                } else {
-                    OutlinedButton(onClick = { AppSettings.setVehicle(context, type) }, modifier = Modifier.weight(1f)) {
-                        Text(label, fontSize = 12.sp, maxLines = 1, color = fg)
-                    }
-                }
-            }
-        }
-
+        Text(
+            "🏍  Chế độ xe máy: giới hạn tốc độ theo luật cho mô tô, chỉ đường tránh cao tốc",
+            fontSize = 14.sp, color = fg, textAlign = TextAlign.Center
+        )
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Text("Cảnh báo bằng giọng nói", fontSize = 15.sp, color = fg, modifier = Modifier.weight(1f))

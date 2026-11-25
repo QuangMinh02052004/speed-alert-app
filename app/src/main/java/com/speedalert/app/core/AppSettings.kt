@@ -25,9 +25,8 @@ object AppSettings {
     fun load(context: Context) {
         if (loaded) return
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        _vehicle.value = runCatching {
-            VehicleType.valueOf(prefs.getString("vehicle", VehicleType.MOTORBIKE.name)!!)
-        }.getOrDefault(VehicleType.MOTORBIKE)
+        // Theo yêu cầu: app chỉ dành cho xe máy (Honda, Yamaha... mô tô trên 50cc).
+        _vehicle.value = VehicleType.MOTORBIKE
         _voiceEnabled.value = prefs.getBoolean("voice", true)
         loaded = true
     }
