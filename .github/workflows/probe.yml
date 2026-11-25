@@ -1,0 +1,50 @@
+name: API probe
+on:
+  push:
+    branches: [ probe ]
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Call APIs
+        run: |
+          mkdir -p out
+          UA="SpeedAlertApp/2.0 (Android; github.com/QuangMinh02052004/speed-alert-app)"
+          # Valhalla: Bến Thành -> Landmark 81 (xe máy), dạng gốc và dạng OSRM (có làn đường)
+          REQ='{"locations":[{"lat":10.7725,"lon":106.6980,"type":"break"},{"lat":10.7950,"lon":106.7219}],"costing":"motor_scooter","costing_options":{"motor_scooter":{"top_speed":60,"use_primary":0.6,"use_hills":0.5}},"units":"kilometers"}'
+          curl -s -m 40 -A "$UA" -H "Content-Type: application/json" -X POST https://valhalla1.openstreetmap.de/route -d "$REQ" -o out/valhalla_native.json -w "valhalla_native %{http_code}\n" | tee -a out/status.txt
+          REQ2=$(echo "$REQ" | python3 -c "import json,sys;d=json.load(sys.stdin);d['format']='osrm';d['banner_instructions']=True;print(json.dumps(d))")
+          curl -s -m 40 -A "$UA" -H "Content-Type: application/json" -X POST https://valhalla1.openstreetmap.de/route -d "$REQ2" -o out/valhalla_osrm.json -w "valhalla_osrm %{http_code}\n" | tee -a out/status.txt
+          curl -s -m 40 -A "$UA" "https://router.project-osrm.org/route/v1/driving/106.6980,10.7725;106.7219,10.7950?overview=full&geometries=polyline6&steps=true&exclude=motorway" -o out/osrm_exclude.json -w "osrm_exclude %{http_code}\n" | tee -a out/status.txt
+          curl -s -m 40 -A "$UA" "https://router.project-osrm.org/route/v1/driving/106.6980,10.7725;106.7219,10.7950?overview=full&geometries=polyline6&steps=true" -o out/osrm.json -w "osrm %{http_code}\n" | tee -a out/status.txt
+          # Overpass: 1 ô dữ liệu ở Q1 TP.HCM (giống app)
+          Q='[out:json][timeout:40];(way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|road)$"](10.75000,106.67500,10.77500,106.70000);)->.w;(node["highway"="speed_camera"](10.75000,106.67500,10.77500,106.70000);)->.c;.w out tags geom;.c out body;'
+          curl -s -m 90 -A "$UA" --data-urlencode "data=$Q" https://overpass-api.de/api/interpreter -o out/overpass.json -w "overpass %{http_code}\n" | tee -a out/status.txt
+          # Tìm kiếm
+          curl -s -m 30 -A "$UA" "https://photon.komoot.io/api/?q=ch%E1%BB%A3%20b%E1%BA%BFn%20th%C3%A0nh&limit=3&lat=10.77&lon=106.70&bbox=102.1,8.4,109.5,23.4" -o out/photon.json -w "photon %{http_code}\n" | tee -a out/status.txt
+          curl -s -m 30 -A "$UA" "https://nominatim.openstreetmap.org/search?q=ch%E1%BB%A3%20b%E1%BA%BFn%20th%C3%A0nh&format=json&limit=3&countrycodes=vn&accept-language=vi" -o out/nominatim.json -w "nominatim %{http_code}\n" | tee -a out/status.txt
+          curl -s -m 30 -o /dev/null -w "style_liberty %{http_code}\n" https://tiles.openfreemap.org/styles/liberty | tee -a out/status.txt
+          curl -s -m 30 -o /dev/null -w "style_dark %{http_code}\n" https://tiles.openfreemap.org/styles/dark | tee -a out/status.txt
+          # Thu gọn file lớn
+          python3 - << 'PY'
+          import json
+          d=json.load(open('out/overpass.json'))
+          els=d.get('elements',[])
+          ways=[e for e in els if e['type']=='way']; nodes=[e for e in els if e['type']=='node']
+          tags={}
+          for w in ways:
+              for k in ('maxspeed','lanes','oneway','turn:lanes','maxspeed:motorcycle','source:maxspeed','maxspeed:type'):
+                  if k in w.get('tags',{}): tags[k]=tags.get(k,0)+1
+          json.dump({'ways':len(ways),'cameras':len(nodes),'tag_counts':tags,'sample_way':ways[0] if ways else None,'sample_cam':nodes[0] if nodes else None,'maxspeed_values':sorted({w['tags'].get('maxspeed') for w in ways if 'maxspeed' in w.get('tags',{})})},open('out/overpass_summary.json','w'),ensure_ascii=False,indent=1)
+          PY
+          rm -f out/overpass.json
+      - name: Save results
+        run: |
+          git config user.email "ci-bot@users.noreply.github.com"
+          git config user.name "CI Bot"
+          git add -f out
+          git commit -m "probe results [skip ci]" || true
+          git push || true

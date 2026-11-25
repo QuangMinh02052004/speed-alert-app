@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Android 15 ép giao diện tràn viền: thanh tìm kiếm/nút bị che dưới thanh trạng thái. Tắt để bố cục đúng. -->
-    <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
-        <item name="android:colorAccent">#0E7C47</item>
-        <item name="android:colorPrimary">#0E7C47</item>
-        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
-    </style>
-</resources>
