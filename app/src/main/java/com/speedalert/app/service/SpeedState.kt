@@ -10,10 +10,20 @@ import kotlinx.coroutines.flow.StateFlow
  */
 object SpeedState {
     data class State(
+        /** Tốc độ hiển thị (đã hiệu chỉnh theo đồng hồ xe nếu người dùng bật). */
         val currentSpeedKmh: Int = 0,
+        /** Tốc độ thật theo GPS (dùng cho cảnh báo vượt tốc độ). */
+        val trueSpeedKmh: Int = 0,
         val speedLimitKmh: Int? = null,
         /** true = giới hạn lấy từ biển báo có trong dữ liệu, false = suy theo luật. */
         val limitFromSign: Boolean = false,
+        /** "user" / "sign" / "law" - nguồn của giới hạn tốc độ. */
+        val limitSource: String = "",
+        /** Đoạn đường (OSM way) đang khớp, để người dùng sửa giới hạn. */
+        val matchedOsmId: Long? = null,
+        /** Số làn của đoạn đường đang đi (0 = chưa rõ). */
+        val lanes: Int = 0,
+        val oneway: Boolean = false,
         val roadName: String = "",
         val roadNote: String = "",
         val lastLat: Double? = null,

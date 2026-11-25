@@ -55,3 +55,15 @@ interface RoadDao {
         upsertTile(tile)
     }
 }
+
+@Dao
+interface UserLimitDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(items: List<UserSpeedLimit>)
+
+    @Query("SELECT * FROM user_limits")
+    suspend fun getAll(): List<UserSpeedLimit>
+
+    @Query("DELETE FROM user_limits WHERE osmId IN (:ids)")
+    suspend fun delete(ids: List<Long>)
+}

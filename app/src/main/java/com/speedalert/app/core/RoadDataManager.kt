@@ -59,6 +59,9 @@ class RoadDataManager(context: Context, private val scope: CoroutineScope) {
             "^(motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|" +
                 "tertiary|tertiary_link|unclassified|residential|living_street|road)$"
 
+        /** Bản đang chạy trong Service, để màn hình (sửa giới hạn tốc độ) dùng chung dữ liệu. */
+        @Volatile var current: RoadDataManager? = null
+
         fun tileKeyOf(lat: Double, lon: Double): String =
             "${floor(lat / TILE_DEG).toInt()}_${floor(lon / TILE_DEG).toInt()}"
 
@@ -77,6 +80,10 @@ class RoadDataManager(context: Context, private val scope: CoroutineScope) {
             val (ty, tx) = key.split('_').map { it.toInt() }
             return doubleArrayOf(ty * TILE_DEG, tx * TILE_DEG, (ty + 1) * TILE_DEG, (tx + 1) * TILE_DEG)
         }
+    }
+
+    init {
+        current = this
     }
 
     private val db = AppDatabase.getInstance(context)
@@ -287,8 +294,15 @@ class RoadDataManager(context: Context, private val scope: CoroutineScope) {
                 maxspeedMotoRaw = w.tags.optString("maxspeed:motorcycle"),
                 lanes = w.tags.optString("lanes").toIntOrNull() ?: 0,
                 oneway = oneway,
+                ref = w.tags.optString("ref"),
+                motorcycleAllowed = !(h == "motorway" || h == "motorway_link" ||
+                    w.tags.optString("motorcycle") in setOf("no", "private") ||
+                    w.tags.optString("motor_vehicle") in setOf("no", "private")),
                 urban = urban,
-                geometry = if (w.tags.optString("oneway") == "-1") w.geom.reversed() else w.geom
+                geometry = if (w.tags.optString("oneway") == "-1") w.geom.reversed() else w.geom,
+                motorcycleNo = w.tags.optString("motorcycle").let { it == "no" || it == "private" } ||
+                    (w.tags.optString("access") == "no" && w.tags.optString("motorcycle") != "yes"),
+                maxspeedLanesRaw = w.tags.optString("maxspeed:lanes:forward").ifBlank { w.tags.optString("maxspeed:lanes") }
             )
         }
         return segs to cams
@@ -298,7 +312,7 @@ class RoadDataManager(context: Context, private val scope: CoroutineScope) {
      * Khớp vị trí GPS vào đoạn đường phù hợp nhất: gần nhất + cùng hướng di chuyển,
      * có "độ trễ" để không nhảy qua lại giữa 2 đường song song / đường gom.
      */
-    fun match(p: GeoPoint, bearing: Float?, speedKmh: Double): MatchResult? {
+    fun match(p: GeoPoint, bearing: Float?, speedKmh: Double, vehicle: VehicleType = VehicleType.MOTORBIKE): MatchResult? {
         val margin = 0.0005
         var best: MatchResult? = null
         var bestScore = Double.MAX_VALUE
@@ -313,12 +327,15 @@ class RoadDataManager(context: Context, private val scope: CoroutineScope) {
             if (proj.distance > MATCH_MAX_DIST) continue
 
             var score = proj.distance
+            // Xe máy: phần đường cấm xe máy (làn chính/cầu vượt...) chỉ chọn khi không còn đường nào khác gần.
+            if (vehicle != VehicleType.CAR && ps.seg.motorcycleNo) score += 35.0
             if (bearing != null && speedKmh > 8) {
                 var diff = GeoUtils.angleDiff(bearing.toDouble(), proj.bearing)
                 if (!ps.seg.oneway) diff = minOf(diff, 180 - diff)
                 score += diff / 90.0 * 30.0
                 if (ps.seg.oneway && diff > 100) score += 40.0
             }
+            if (!ps.seg.motorcycleAllowed && AppSettings.vehicle.value != VehicleType.CAR) score += 35.0
             val result = MatchResult(ps.seg, proj.distance, proj.point, proj.bearing)
             if (score < bestScore) {
                 bestScore = score
@@ -335,4 +352,16 @@ class RoadDataManager(context: Context, private val scope: CoroutineScope) {
     }
 
     fun hasData(): Boolean = segments.isNotEmpty()
+
+    /**
+     * Các đoạn cùng tên đường (hoặc chính nó) trong bán kính [radius] m quanh p, để
+     * áp giới hạn người dùng sửa cho cả tuyến chứ không chỉ một mẩu ngắn.
+     */
+    fun sameRoadIds(osmId: Long, p: GeoPoint, radius: Double = 1500.0): List<Long> {
+        val base = segments.firstOrNull { it.seg.osmId == osmId }?.seg ?: return listOf(osmId)
+        if (base.name.isBlank()) return listOf(osmId)
+        return segments.filter { ps ->
+            ps.seg.name == base.name && ps.seg.geometry.any { GeoUtils.distance(it, p) <= radius }
+        }.map { it.seg.osmId }.ifEmpty { listOf(osmId) }
+    }
 }

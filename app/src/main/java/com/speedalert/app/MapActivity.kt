@@ -234,6 +234,7 @@ class MapActivity : ComponentActivity() {
             } else false
         }
         findViewById<Button>(R.id.recenterButton).setOnClickListener { recenter() }
+        limitSign.setOnClickListener { LimitCorrection.show(this, lifecycleScope) }
         findViewById<Button>(R.id.placeClose).setOnClickListener { clearPlace() }
         directionsButton.setOnClickListener { selectedPlace?.let { computeRoute(it) } }
         startNavButton.setOnClickListener { startNavigation() }
@@ -358,7 +359,12 @@ class MapActivity : ComponentActivity() {
             s.gpsWeak -> "GPS yếu ±${s.accuracyM.toInt()}m"
             else -> "GPS ±${s.accuracyM.toInt()}m"
         }
-        val road = listOf(s.roadName, s.roadNote).filter { it.isNotBlank() }.joinToString(" - ")
+        val laneText = when {
+            s.lanes > 0 && s.oneway -> "1 chiều, ${s.lanes} làn"
+            s.lanes > 0 -> "${s.lanes} làn"
+            else -> ""
+        }
+        val road = listOf(s.roadName, laneText, s.roadNote).filter { it.isNotBlank() }.joinToString(" - ")
         dataChip.text = if (road.isNotBlank()) "$road  •  ${s.dataStatus}" else s.dataStatus
 
         val nav = NavigationManager.state.value
@@ -637,8 +643,11 @@ class MapActivity : ComponentActivity() {
 
         infoSpeed.text = "Tốc độ hiện tại: ${s.currentSpeedKmh} km/h  (GPS ±${s.accuracyM?.toInt() ?: 0}m)"
         infoLimit.text = when {
-            s.speedLimitKmh != null -> "Giới hạn tốc độ: ${s.speedLimitKmh} km/h " +
-                if (s.limitFromSign) "(theo biển báo)" else "(theo luật cho ${AppSettings.vehicle.value.label.lowercase()})"
+            s.speedLimitKmh != null -> "Giới hạn tốc độ: ${s.speedLimitKmh} km/h " + when (s.limitSource) {
+                "user" -> "(bạn đã sửa)"
+                "sign" -> "(theo biển báo trên bản đồ)"
+                else -> "(theo luật cho xe máy - chạm biển tốc độ trên bản đồ để sửa)"
+            }
             s.roadNote.isNotBlank() -> s.roadNote
             else -> "Giới hạn tốc độ: chưa có dữ liệu đoạn này"
         }

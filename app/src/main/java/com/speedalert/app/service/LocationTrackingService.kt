@@ -11,6 +11,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.os.Build
 import android.os.IBinder
 import android.os.Looper
@@ -29,6 +31,7 @@ import com.speedalert.app.core.GeoUtils
 import com.speedalert.app.core.NavigationManager
 import com.speedalert.app.core.RoadDataManager
 import com.speedalert.app.core.RoutingClient
+import com.speedalert.app.core.SpeedFilter
 import com.speedalert.app.core.SpeedLimitRules
 import com.speedalert.app.core.VoiceAnnouncer
 import com.speedalert.app.data.GeoPoint
@@ -78,7 +81,11 @@ class LocationTrackingService : Service() {
     /** Xử lý từng vị trí lần lượt theo thứ tự (Mutex công bằng = FIFO). */
     private val processMutex = Mutex()
 
+    private val speedFilter = SpeedFilter()
     private var smoothedSpeedKmh = 0.0
+    private var locationManager: LocationManager? = null
+    /** Thời điểm (elapsedRealtimeNanos) nhận vị trí gần nhất từ chip GPS thô. */
+    @Volatile private var lastRawGpsNanos = 0L
     private var lastLocation: Location? = null
     private var lastBearing: Float? = null
     private var lastOverLimitVoiceAt = 0L
@@ -86,11 +93,20 @@ class LocationTrackingService : Service() {
     private var lastNotificationAt = 0L
     private var updatesStarted = false
 
+    // Nguồn 1 (dự phòng): Fused của Google - có cả wifi/mạng, nhưng tự làm mượt nên báo tốc độ trễ.
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             val location = result.lastLocation ?: return
+            val rawFresh = android.os.SystemClock.elapsedRealtimeNanos() - lastRawGpsNanos < 2_500_000_000L
+            if (rawFresh) return // đang có GPS thô mới → bỏ qua bản Fused để không trễ/lẫn số
             scope.launch { processMutex.withLock { handleLocation(location) } }
         }
+    }
+
+    // Nguồn 2 (ưu tiên): chip GPS thô - tốc độ Doppler đo trực tiếp, không qua lớp làm mượt.
+    private val rawGpsListener = LocationListener { location ->
+        lastRawGpsNanos = location.elapsedRealtimeNanos
+        scope.launch { processMutex.withLock { handleLocation(location) } }
     }
 
     override fun onCreate() {
@@ -106,6 +122,7 @@ class LocationTrackingService : Service() {
         scope.launch {
             roadData.status.collectLatest { SpeedState.setStatus(it) }
         }
+        scope.launch(Dispatchers.IO) { com.speedalert.app.core.UserLimits.load(applicationContext) }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -160,6 +177,16 @@ class LocationTrackingService : Service() {
             updatesStarted = true
         } catch (e: SecurityException) {
             stopSelf()
+            return
+        }
+        try {
+            val lm = getSystemService(LOCATION_SERVICE) as LocationManager
+            if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, rawGpsListener, Looper.getMainLooper())
+                locationManager = lm
+            }
+        } catch (e: Exception) {
+            // Không có chip GPS riêng / bị từ chối: vẫn chạy bằng Fused.
         }
     }
 
@@ -177,19 +204,13 @@ class LocationTrackingService : Service() {
         }
         val speedAcc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && location.hasSpeedAccuracy()) {
             location.speedAccuracyMetersPerSecond
-        } else 1.5f
-
-        if (rawMps != null) {
-            val rawKmh = if (rawMps < 0.9) 0.0 else rawMps * 3.6 // đứng yên: GPS hay "trôi" vài km/h
-            val alpha = when {
-                speedAcc <= 0.5f -> 0.75
-                speedAcc <= 1.5f -> 0.55
-                else -> 0.3
-            }
-            smoothedSpeedKmh = if (rawKmh == 0.0 && smoothedSpeedKmh < 5) 0.0
-            else alpha * rawKmh + (1 - alpha) * smoothedSpeedKmh
-        }
-        val speedKmh = smoothedSpeedKmh.toInt()
+        } else null
+        if (rawMps != null) speedFilter.update(rawMps, speedAcc, location.elapsedRealtimeNanos)
+        smoothedSpeedKmh = speedFilter.speedMps * 3.6
+        // Tốc độ thật (dùng để cảnh báo vượt tốc độ - camera phạt nguội đo tốc độ thật).
+        val trueSpeedKmh = Math.round(smoothedSpeedKmh).toInt()
+        // Tốc độ hiển thị: có thể hiệu chỉnh cho khớp đồng hồ xe (đồng hồ xe thường hiện cao hơn).
+        val speedKmh = Math.round(smoothedSpeedKmh * (1 + AppSettings.speedCalibrationPercent.value / 100.0)).toInt()
 
         // ---- 2. Hướng di chuyển (chỉ tin khi đang chạy, đứng yên hướng nhảy loạn) ----
         if (location.hasBearing() && (rawMps ?: 0.0) > 1.5) lastBearing = location.bearing
@@ -200,11 +221,11 @@ class LocationTrackingService : Service() {
 
         // ---- 3. Dữ liệu đường quanh vị trí + khớp đường ----
         roadData.ensureArea(location.latitude, location.longitude)
-        val match = if (!gpsWeak || location.accuracy < 60) roadData.match(point, bearing, smoothedSpeedKmh) else null
+        val match = if (!gpsWeak || location.accuracy < 60) roadData.match(point, bearing, smoothedSpeedKmh, AppSettings.vehicle.value) else null
         val vehicle = AppSettings.vehicle.value
         val limitInfo = match?.let { SpeedLimitRules.resolve(it.segment, vehicle) }
         val limit = limitInfo?.limitKmh
-        val overLimit = limit != null && speedKmh > limit + 2
+        val overLimit = limit != null && trueSpeedKmh > limit + 2
 
         // ---- 4. Camera phạt nguội phía trước ----
         var nearestCamDist: Int? = null
@@ -242,17 +263,30 @@ class LocationTrackingService : Service() {
             if (NavigationManager.shouldReroute()) reroute(point, bearing)
         }
 
-        val roadName = when {
+        val baseName = when {
             match == null -> ""
             match.segment.name.isNotBlank() -> match.segment.name
+            match.segment.ref.isNotBlank() -> match.segment.ref
             else -> roadTypeLabel(match.segment.highwayType)
         }
+        val laneInfo = match?.segment?.let { seg ->
+            listOfNotNull(
+                if (seg.lanes > 0) "${seg.lanes} làn" else null,
+                if (seg.oneway) "1 chiều" else null
+            ).joinToString(", ")
+        } ?: ""
+        val roadName = if (laneInfo.isNotBlank()) "$baseName ($laneInfo)" else baseName
 
         SpeedState.set(
             SpeedState.state.value.copy(
                 currentSpeedKmh = speedKmh,
+                trueSpeedKmh = trueSpeedKmh,
                 speedLimitKmh = limit,
                 limitFromSign = limitInfo?.fromSign ?: false,
+                limitSource = limitInfo?.source ?: "",
+                matchedOsmId = match?.segment?.osmId,
+                lanes = match?.segment?.lanes ?: 0,
+                oneway = match?.segment?.oneway ?: false,
                 roadName = roadName,
                 roadNote = limitInfo?.note ?: "",
                 lastLat = location.latitude,
@@ -343,6 +377,7 @@ class LocationTrackingService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         fusedClient.removeLocationUpdates(locationCallback)
+        locationManager?.removeUpdates(rawGpsListener)
         soundAlertManager.release()
         voice.shutdown()
         scope.cancel()

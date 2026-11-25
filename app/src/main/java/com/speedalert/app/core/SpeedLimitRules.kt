@@ -6,10 +6,12 @@ import com.speedalert.app.data.RoadSegment
 data class SpeedLimitInfo(
     /** km/h, null nếu không áp dụng được (vd xe máy trên cao tốc). */
     val limitKmh: Int?,
-    /** true = lấy từ biển báo trong dữ liệu OSM, false = suy ra theo luật. */
+    /** true = lấy từ biển báo (dữ liệu bản đồ hoặc người dùng sửa), false = suy ra theo luật. */
     val fromSign: Boolean,
     /** Ghi chú hiển thị thêm (vd "Cao tốc - cấm xe máy"). */
-    val note: String = ""
+    val note: String = "",
+    /** "user" = bạn tự sửa, "sign" = biển báo trên bản đồ, "law" = suy theo luật. */
+    val source: String = if (fromSign) "sign" else "law"
 )
 
 /**
@@ -24,12 +26,56 @@ data class SpeedLimitInfo(
  */
 object SpeedLimitRules {
 
+    /**
+     * Giới hạn riêng cho XE MÁY trên một số tuyến đã xác minh qua báo chí / cơ quan
+     * chức năng (OpenStreetMap chưa ghi). Áp dụng khi tên đường khớp và nằm trong vùng.
+     */
+    private data class Corridor(
+        val names: List<String>,
+        val minLat: Double, val maxLat: Double, val minLon: Double, val maxLon: Double,
+        val motoLimit: Int,
+        val source: String
+    )
+
+    private const val HCM_MIN_LAT = 10.35
+    private const val HCM_MAX_LAT = 11.20
+    private const val HCM_MIN_LON = 106.35
+    private const val HCM_MAX_LON = 107.05
+
+    private val CORRIDORS = listOf(
+        // PLO 01/2025: Võ Văn Kiệt cho phép xe máy tối đa 50 km/h.
+        Corridor(listOf("võ văn kiệt"), HCM_MIN_LAT, HCM_MAX_LAT, HCM_MIN_LON, HCM_MAX_LON, 50, "Võ Văn Kiệt - xe máy 50"),
+        // Sở GTVT TP.HCM: Quốc lộ 22 giới hạn xe máy 50 km/h.
+        Corridor(listOf("quốc lộ 22", "ql22", "ql.22", "xa lộ xuyên á"), HCM_MIN_LAT, HCM_MAX_LAT, HCM_MIN_LON, HCM_MAX_LON, 50, "QL22 - xe máy 50"),
+        // Phạm Văn Đồng: làn hỗn hợp điều chỉnh từ 80 xuống 60 km/h.
+        Corridor(listOf("phạm văn đồng"), HCM_MIN_LAT, HCM_MAX_LAT, HCM_MIN_LON, HCM_MAX_LON, 60, "Phạm Văn Đồng - làn hỗn hợp 60")
+    )
+
+    private fun normalize(name: String) = name.lowercase().trim().removePrefix("đường ").removePrefix("đại lộ ").trim()
+
+    private fun corridorLimit(seg: RoadSegment): Int? {
+        if (seg.geometry.isEmpty()) return null
+        val mid = seg.geometry[seg.geometry.size / 2]
+        val keys = listOf(normalize(seg.name), normalize(seg.ref))
+        return CORRIDORS.firstOrNull { c ->
+            mid.lat in c.minLat..c.maxLat && mid.lon in c.minLon..c.maxLon &&
+                c.names.any { n -> keys.any { it == n || it.startsWith("$n ") } }
+        }?.motoLimit
+    }
+
     private val MAJOR_DIVIDED_TYPES = setOf("motorway", "trunk", "primary", "motorway_link", "trunk_link")
 
     fun resolve(seg: RoadSegment, vehicle: VehicleType): SpeedLimitInfo {
+        UserLimits.get(seg.osmId)?.let { return SpeedLimitInfo(it, true, "", "user") }
         val isMotorway = seg.highwayType == "motorway" || seg.highwayType == "motorway_link"
         if (isMotorway && vehicle != VehicleType.CAR) {
             return SpeedLimitInfo(null, false, "Cao tốc - cấm xe máy")
+        }
+        if (!seg.motorcycleAllowed && vehicle != VehicleType.CAR) {
+            return SpeedLimitInfo(null, false, "Làn/đường này cấm xe máy - đi đường song hành")
+        }
+        if (vehicle == VehicleType.MOTORBIKE) {
+            corridorLimit(seg)?.let { return SpeedLimitInfo(it, true) }
         }
 
         val multiLane = (seg.oneway && (seg.lanes >= 2 || (seg.lanes == 0 && seg.highwayType in MAJOR_DIVIDED_TYPES)))
@@ -46,12 +92,20 @@ object SpeedLimitRules {
             VehicleType.CAR -> 120
         }
 
-        val signRaw = if (vehicle != VehicleType.CAR && seg.maxspeedMotoRaw.isNotBlank()) seg.maxspeedMotoRaw else seg.maxspeedRaw
-        val sign = parseMaxspeed(signRaw)
-        if (sign != null) {
-            return SpeedLimitInfo(minOf(sign, vehicleCap), true)
+        // Xe máy đi làn ngoài cùng bên phải → lấy giới hạn của làn cuối trong maxspeed:lanes.
+        val laneSign = if (vehicle != VehicleType.CAR && seg.maxspeedLanesRaw.isNotBlank()) {
+            seg.maxspeedLanesRaw.split('|').lastOrNull()?.let { parseMaxspeed(it) }
+        } else null
+        val sign = when {
+            vehicle != VehicleType.CAR && seg.maxspeedMotoRaw.isNotBlank() -> parseMaxspeed(seg.maxspeedMotoRaw)
+            laneSign != null -> laneSign
+            else -> parseMaxspeed(seg.maxspeedRaw)
         }
-        return SpeedLimitInfo(minOf(legal, vehicleCap), false)
+        val motoNote = if (vehicle != VehicleType.CAR && seg.motorcycleNo) "Phần đường cấm xe máy" else ""
+        if (sign != null) {
+            return SpeedLimitInfo(minOf(sign, vehicleCap), true, motoNote)
+        }
+        return SpeedLimitInfo(minOf(legal, vehicleCap), false, motoNote)
     }
 
     /** "60" / "60 km/h" / "40 mph" → km/h. Các giá trị kiểu "VN:urban" → null. */

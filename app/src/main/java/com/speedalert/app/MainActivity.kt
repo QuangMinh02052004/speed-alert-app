@@ -28,6 +28,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
+import androidx.compose.foundation.clickable
+import androidx.lifecycle.lifecycleScope
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -75,7 +78,7 @@ class MainActivity : ComponentActivity() {
         AppSettings.load(this)
         setContent {
             MaterialTheme {
-                HomeScreen(permissionMessage.value)
+                HomeScreen(permissionMessage.value) { LimitCorrection.show(this, lifecycleScope) }
             }
         }
         requestPermissionsAndStart()
@@ -103,11 +106,12 @@ private val Green = Color(0xFF0E7C47)
 private val Red = Color(0xFFD32F2F)
 
 @Composable
-fun HomeScreen(permissionMessage: String) {
+fun HomeScreen(permissionMessage: String, onEditLimit: () -> Unit) {
     val context = LocalContext.current
     val state by SpeedState.state.collectAsState()
     val running by SpeedState.serviceRunning.collectAsState()
     val voice by AppSettings.voiceEnabled.collectAsState()
+    val calibration by AppSettings.speedCalibrationPercent.collectAsState()
 
     val bg = when {
         state.overLimit -> Red
@@ -144,7 +148,8 @@ fun HomeScreen(permissionMessage: String) {
                     modifier = Modifier
                         .size(92.dp)
                         .background(Color.White, CircleShape)
-                        .border(9.dp, Red, CircleShape),
+                        .border(9.dp, Red, CircleShape)
+                        .clickable { onEditLimit() },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -169,9 +174,22 @@ fun HomeScreen(permissionMessage: String) {
         )
         if (state.speedLimitKmh != null) {
             Text(
-                if (state.limitFromSign) "Giới hạn theo biển báo" else "Giới hạn theo luật (TT 38/2024)",
+                when (state.limitSource) {
+                    "user" -> "Giới hạn bạn đã sửa theo biển thật"
+                    "sign" -> "Giới hạn theo biển báo trên bản đồ"
+                    else -> "Giới hạn theo luật (TT 38/2024) - chạm biển để sửa nếu sai"
+                },
+                fontSize = 13.sp, color = fg.copy(alpha = 0.75f), textAlign = TextAlign.Center
+            )
+        }
+        if (state.lanes > 0) {
+            Text(
+                (if (state.oneway) "Đường 1 chiều, " else "") + "${state.lanes} làn",
                 fontSize = 13.sp, color = fg.copy(alpha = 0.75f)
             )
+        }
+        if (calibration > 0) {
+            Text("Tốc độ thật GPS: ${state.trueSpeedKmh} km/h", fontSize = 13.sp, color = fg.copy(alpha = 0.75f))
         }
         state.cameraDistanceM?.let {
             Text("📷 Camera phạt nguội phía trước: $it m", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = fg)
@@ -204,6 +222,22 @@ fun HomeScreen(permissionMessage: String) {
             Text("Cảnh báo bằng giọng nói", fontSize = 15.sp, color = fg, modifier = Modifier.weight(1f))
             Switch(checked = voice, onCheckedChange = { AppSettings.setVoiceEnabled(context, it) })
         }
+
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "Hiệu chỉnh theo đồng hồ xe: +$calibration%" + if (calibration == 0) " (đang hiện tốc độ thật GPS)" else "",
+            fontSize = 14.sp, color = fg, modifier = Modifier.fillMaxWidth()
+        )
+        Slider(
+            value = calibration.toFloat(),
+            onValueChange = { AppSettings.setSpeedCalibration(context, Math.round(it)) },
+            valueRange = 0f..15f,
+            steps = 14
+        )
+        Text(
+            "Đồng hồ xe máy thường hiện cao hơn tốc độ thật vài %. Kéo để số trên app khớp đồng hồ xe; cảnh báo quá tốc độ vẫn dùng tốc độ thật.",
+            fontSize = 11.sp, color = fg.copy(alpha = 0.65f)
+        )
 
         Spacer(Modifier.height(12.dp))
         var refreshing by remember { mutableStateOf(false) }

@@ -20,6 +20,10 @@ object AppSettings {
     private val _voiceEnabled = MutableStateFlow(true)
     val voiceEnabled: StateFlow<Boolean> = _voiceEnabled
 
+    /** % cộng thêm vào tốc độ hiển thị cho khớp đồng hồ xe (0 = tốc độ thật GPS). */
+    private val _speedCalibrationPercent = MutableStateFlow(0)
+    val speedCalibrationPercent: StateFlow<Int> = _speedCalibrationPercent
+
     @Volatile private var loaded = false
 
     fun load(context: Context) {
@@ -28,6 +32,7 @@ object AppSettings {
         // Theo yêu cầu: app chỉ dành cho xe máy (Honda, Yamaha... mô tô trên 50cc).
         _vehicle.value = VehicleType.MOTORBIKE
         _voiceEnabled.value = prefs.getBoolean("voice", true)
+        _speedCalibrationPercent.value = prefs.getInt("speed_cal", 0).coerceIn(0, 15)
         loaded = true
     }
 
@@ -35,6 +40,12 @@ object AppSettings {
         _vehicle.value = type
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putString("vehicle", type.name).apply()
+    }
+
+    fun setSpeedCalibration(context: Context, percent: Int) {
+        val p = percent.coerceIn(0, 15)
+        _speedCalibrationPercent.value = p
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("speed_cal", p).apply()
     }
 
     fun setVoiceEnabled(context: Context, enabled: Boolean) {

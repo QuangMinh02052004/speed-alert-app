@@ -7,14 +7,15 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
 @Database(
-    entities = [RoadSegment::class, CameraLocation::class, TileInfo::class],
-    version = 3,
+    entities = [RoadSegment::class, CameraLocation::class, TileInfo::class, UserSpeedLimit::class],
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun roadDao(): RoadDao
     abstract fun cameraDao(): CameraDao
+    abstract fun userLimitDao(): UserLimitDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null

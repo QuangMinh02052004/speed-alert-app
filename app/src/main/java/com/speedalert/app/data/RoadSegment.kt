@@ -28,9 +28,25 @@ data class RoadSegment(
     val maxspeedMotoRaw: String,
     val lanes: Int,
     val oneway: Boolean,
+    /** Số hiệu tuyến, vd "QL.1", "QL.52". */
+    val ref: String,
+    /** false nếu đoạn này cấm xe máy (vd làn chính Xa lộ Hà Nội, cao tốc). */
+    val motorcycleAllowed: Boolean,
     /** Suy ra lúc tải: đoạn đường nằm trong khu vực đông dân cư hay không. */
     val urban: Boolean,
-    val geometry: List<GeoPoint>
+    val geometry: List<GeoPoint>,
+    /** true nếu bản đồ ghi phần đường này cấm xe máy (motorcycle=no), vd làn chính Xa lộ Hà Nội. */
+    val motorcycleNo: Boolean = false,
+    /** Thẻ maxspeed:lanes (vd "80|80|60"): giới hạn từng làn, trái → phải. */
+    val maxspeedLanesRaw: String = ""
+)
+
+/** Giới hạn tốc độ người dùng tự sửa cho một đoạn đường (ưu tiên cao nhất). */
+@androidx.room.Entity(tableName = "user_limits")
+data class UserSpeedLimit(
+    @androidx.room.PrimaryKey val osmId: Long,
+    val limitKmh: Int,
+    val updatedAt: Long = System.currentTimeMillis()
 )
 
 /** Ô khu vực đã tải dữ liệu, để biết khi nào cần tải lại (cập nhật dữ liệu). */
