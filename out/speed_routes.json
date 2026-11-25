@@ -1,0 +1,2355 @@
+{
+ "QL1 (1A)": {
+  "total_km": 502.8,
+  "maxspeed_km": {
+   "(không có)": 352.1,
+   "50": 64.2,
+   "60": 60.9,
+   "80": 16.5,
+   "90": 5.6,
+   "40": 2.1,
+   "70": 1.4
+  },
+  "moto_km": {
+   "70": 13.9,
+   "80": 2.9,
+   "50": 0.3
+  },
+  "motorcycle_no_km": 97.5,
+  "samples": [
+   {
+    "id": 136700450,
+    "name": "Cầu vượt Nút giao Bình Thuận",
+    "ref": "QL.1",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.68732,
+     106.5937
+    ]
+   },
+   {
+    "id": 136700456,
+    "name": "Lê Khả Phiêu",
+    "ref": "QL.1",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.69222,
+     106.59547
+    ]
+   },
+   {
+    "id": 136700457,
+    "name": "Cầu vượt Nút giao Bình Thuận",
+    "ref": "QL.1",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.69221,
+     106.59536
+    ]
+   },
+   {
+    "id": 151581275,
+    "name": "Lê Khả Phiêu",
+    "ref": "QL.1",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.69801,
+     106.59704
+    ]
+   },
+   {
+    "id": 151581276,
+    "name": "Cầu Bình Điền 1",
+    "ref": "QL.1",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.70027,
+     106.5973
+    ]
+   },
+   {
+    "id": 211221896,
+    "name": "Lê Khả Phiêu",
+    "ref": "QL.1",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.69608,
+     106.59662
+    ]
+   },
+   {
+    "id": 211221909,
+    "name": "Cầu Bình Điền 2",
+    "ref": "QL.1",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.70286,
+     106.59734
+    ]
+   },
+   {
+    "id": 211221983,
+    "name": "Lê Khả Phiêu",
+    "ref": "QL.1",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.70454,
+     106.59748
+    ]
+   },
+   {
+    "id": 220421449,
+    "name": "Lê Khả Phiêu",
+    "ref": "QL.1",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.70416,
+     106.59722
+    ]
+   },
+   {
+    "id": 1203399169,
+    "name": "Lê Khả Phiêu",
+    "ref": "QL.1",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.69948,
+     106.5974
+    ]
+   },
+   {
+    "id": 1203399171,
+    "name": "Lê Khả Phiêu",
+    "ref": "QL.1",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.69329,
+     106.59561
+    ]
+   },
+   {
+    "id": 1203399173,
+    "name": "Đường Lê Khả Phiêu",
+    "ref": "QL.1",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.69654,
+     106.59664
+    ]
+   },
+   {
+    "id": 1203399175,
+    "name": "Lê Khả Phiêu",
+    "ref": "QL.1",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.69688,
+     106.59675
+    ]
+   },
+   {
+    "id": 1213254529,
+    "name": "Lê Khả Phiêu",
+    "ref": "QL.1",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.70738,
+     106.5982
+    ]
+   },
+   {
+    "id": 1213254530,
+    "name": "Lê Khả Phiêu",
+    "ref": "QL.1",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.71095,
+     106.59874
+    ]
+   }
+  ]
+ },
+ "QL20": {
+  "total_km": 105.5,
+  "maxspeed_km": {
+   "(không có)": 105.3,
+   "40": 0.2
+  },
+  "moto_km": {},
+  "motorcycle_no_km": 0.0,
+  "samples": [
+   {
+    "id": 563814370,
+    "name": "Quốc lộ 20",
+    "ref": "QL.20",
+    "hw": "trunk_link",
+    "maxspeed": "40",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.94308,
+     107.14054
+    ]
+   }
+  ]
+ },
+ "QL51": {
+  "total_km": 204.2,
+  "maxspeed_km": {
+   "60": 101.1,
+   "90": 54.7,
+   "(không có)": 20.6,
+   "50": 15.1,
+   "70": 11.5,
+   "40": 0.9,
+   "80": 0.2
+  },
+  "moto_km": {
+   "70": 54.7
+  },
+  "motorcycle_no_km": 40.4,
+  "samples": [
+   {
+    "id": 80175120,
+    "name": "Quốc lộ 51",
+    "ref": "QL.51",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.49013,
+     107.17022
+    ]
+   },
+   {
+    "id": 119985230,
+    "name": "Quốc lộ 51",
+    "ref": "QL.51",
+    "hw": "trunk",
+    "maxspeed": "70",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.66856,
+     107.03237
+    ]
+   },
+   {
+    "id": 119985240,
+    "name": "Cầu Sông Dinh",
+    "ref": "QL.51",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.49231,
+     107.1663
+    ]
+   },
+   {
+    "id": 129946147,
+    "name": "Quốc lộ 51",
+    "ref": "QL.51",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.49661,
+     107.16086
+    ]
+   },
+   {
+    "id": 129946149,
+    "name": "Cầu Sông Dinh",
+    "ref": "QL.51",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.49274,
+     107.16595
+    ]
+   },
+   {
+    "id": 147865902,
+    "name": "Cầu Thái Thiện",
+    "ref": "QL.51",
+    "hw": "trunk",
+    "maxspeed": "70",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.6669,
+     107.03313
+    ]
+   },
+   {
+    "id": 147865910,
+    "name": "Độc Lập",
+    "ref": "QL.51",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.62196,
+     107.05539
+    ]
+   },
+   {
+    "id": 219616786,
+    "name": "Quốc lộ 51",
+    "ref": "QL.51",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.68234,
+     107.02487
+    ]
+   },
+   {
+    "id": 219617006,
+    "name": "Cầu Thái Thiện",
+    "ref": "QL.51",
+    "hw": "trunk",
+    "maxspeed": "90",
+    "moto": "70",
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.66647,
+     107.03322
+    ]
+   },
+   {
+    "id": 219617009,
+    "name": "Quốc lộ 51",
+    "ref": "QL.51",
+    "hw": "trunk",
+    "maxspeed": "90",
+    "moto": "70",
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.66521,
+     107.03381
+    ]
+   },
+   {
+    "id": 235794900,
+    "name": "Độc Lập",
+    "ref": "QL.51",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.61297,
+     107.05688
+    ]
+   },
+   {
+    "id": 235794901,
+    "name": "Cầu Thị Vải",
+    "ref": "QL.51",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.62018,
+     107.05602
+    ]
+   },
+   {
+    "id": 235794902,
+    "name": "Cầu Thị Vải",
+    "ref": "QL.51",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.61989,
+     107.05595
+    ]
+   },
+   {
+    "id": 235794903,
+    "name": "Độc Lập",
+    "ref": "QL.51",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.6133,
+     107.05699
+    ]
+   },
+   {
+    "id": 235795861,
+    "name": "Độc Lập",
+    "ref": "QL.51",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": null,
+    "mid": [
+     10.59258,
+     107.05467
+    ]
+   }
+  ]
+ },
+ "QL52 / Xa lộ Hà Nội / Võ Nguyên Giáp": {
+  "total_km": 169.2,
+  "maxspeed_km": {
+   "(không có)": 93.0,
+   "60": 32.1,
+   "50": 17.9,
+   "80": 14.3,
+   "90": 5.7,
+   "40": 5.1,
+   "70": 0.9,
+   "30": 0.2
+  },
+  "moto_km": {
+   "60": 0.2,
+   "50": 0.1
+  },
+  "motorcycle_no_km": 33.3,
+  "samples": [
+   {
+    "id": 242782686,
+    "name": "Võ Nguyên Giáp",
+    "ref": "ĐT.994C",
+    "hw": "secondary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "1",
+    "mid": [
+     10.41855,
+     107.15757
+    ]
+   },
+   {
+    "id": 383734173,
+    "name": "Võ Nguyên Giáp",
+    "ref": "ĐT.994C",
+    "hw": "primary",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.42279,
+     107.15827
+    ]
+   },
+   {
+    "id": 696439671,
+    "name": "Võ Nguyên Giáp",
+    "ref": "ĐT.994C",
+    "hw": "secondary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "1",
+    "mid": [
+     10.41204,
+     107.1571
+    ]
+   },
+   {
+    "id": 776663102,
+    "name": "Võ Nguyên Giáp",
+    "ref": "ĐT.994C",
+    "hw": "primary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.45032,
+     107.17347
+    ]
+   },
+   {
+    "id": 1082242213,
+    "name": "Võ Nguyên Giáp",
+    "ref": null,
+    "hw": "secondary",
+    "maxspeed": "40",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.62663,
+     107.06164
+    ]
+   },
+   {
+    "id": 1150869461,
+    "name": "Võ Nguyên Giáp",
+    "ref": "ĐT.994C",
+    "hw": "secondary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "1",
+    "mid": [
+     10.41222,
+     107.1568
+    ]
+   },
+   {
+    "id": 1194193111,
+    "name": "Võ Nguyên Giáp",
+    "ref": "ĐT.994C",
+    "hw": "secondary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "1",
+    "mid": [
+     10.42125,
+     107.15796
+    ]
+   },
+   {
+    "id": 1231002060,
+    "name": "Võ Nguyên Giáp",
+    "ref": "ĐT.994C",
+    "hw": "secondary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "1",
+    "mid": [
+     10.42017,
+     107.15816
+    ]
+   },
+   {
+    "id": 1340975582,
+    "name": "Võ Nguyên Giáp",
+    "ref": null,
+    "hw": "secondary",
+    "maxspeed": "40",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.62168,
+     107.06241
+    ]
+   },
+   {
+    "id": 1340975584,
+    "name": "Võ Nguyên Giáp",
+    "ref": null,
+    "hw": "secondary",
+    "maxspeed": "40",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.61395,
+     107.06569
+    ]
+   },
+   {
+    "id": 1416224966,
+    "name": "Võ Nguyên Giáp",
+    "ref": "ĐT.994C",
+    "hw": "primary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.45998,
+     107.17031
+    ]
+   },
+   {
+    "id": 1487144112,
+    "name": "Võ Nguyên Giáp",
+    "ref": null,
+    "hw": "secondary",
+    "maxspeed": "40",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.62366,
+     107.06177
+    ]
+   },
+   {
+    "id": 1581781629,
+    "name": "Võ Nguyên Giáp",
+    "ref": "ĐT.994C",
+    "hw": "primary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.44579,
+     107.17212
+    ]
+   },
+   {
+    "id": 32577095,
+    "name": "Song Hành Võ Nguyên Giáp",
+    "ref": null,
+    "hw": "secondary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.80064,
+     106.73058
+    ]
+   },
+   {
+    "id": 32643896,
+    "name": "Xa lộ Hà Nội",
+    "ref": "QL.1",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "7",
+    "mid": [
+     10.8996,
+     106.83354
+    ]
+   }
+  ]
+ },
+ "QL13": {
+  "total_km": 236.9,
+  "maxspeed_km": {
+   "(không có)": 231.5,
+   "100": 2.6,
+   "70": 2.1,
+   "40": 0.3,
+   "60": 0.2,
+   "50": 0.1
+  },
+  "moto_km": {
+   "60": 66.3,
+   "70": 46.2
+  },
+  "motorcycle_no_km": 0.4,
+  "samples": [
+   {
+    "id": 55451579,
+    "name": "Quốc lộ 13",
+    "ref": "QL.13",
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.8253,
+     106.71394
+    ]
+   },
+   {
+    "id": 722367494,
+    "name": "Quốc lộ 13",
+    "ref": "QL.13",
+    "hw": "primary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "5",
+    "mid": [
+     10.82397,
+     106.7137
+    ]
+   },
+   {
+    "id": 722367495,
+    "name": "Quốc lộ 13",
+    "ref": "QL.13",
+    "hw": "primary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.82373,
+     106.71365
+    ]
+   },
+   {
+    "id": 722367496,
+    "name": "Quốc lộ 13",
+    "ref": "QL.13",
+    "hw": "primary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.82335,
+     106.71358
+    ]
+   },
+   {
+    "id": 722367504,
+    "name": "Quốc lộ 13",
+    "ref": "QL.13",
+    "hw": "primary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "5",
+    "mid": [
+     10.82433,
+     106.71377
+    ]
+   },
+   {
+    "id": 1167897664,
+    "name": "Đại lộ Bình Dương",
+    "ref": "QL.13",
+    "hw": "trunk",
+    "maxspeed": "70",
+    "moto": "60",
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.94565,
+     106.70756
+    ]
+   },
+   {
+    "id": 1189584443,
+    "name": "Đại lộ Bình Dương",
+    "ref": "QL.13",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": "60",
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.886,
+     106.6995
+    ]
+   },
+   {
+    "id": 1197883927,
+    "name": "Đại lộ Bình Dương",
+    "ref": "QL.13",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": "60",
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.88625,
+     106.69948
+    ]
+   },
+   {
+    "id": 1285091064,
+    "name": "Đại lộ Bình Dương",
+    "ref": "QL.13",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": "60",
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.88604,
+     106.6994
+    ]
+   },
+   {
+    "id": 1461444951,
+    "name": "Đại lộ Bình Dương",
+    "ref": "QL.13",
+    "hw": "trunk",
+    "maxspeed": "70",
+    "moto": "60",
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.9518,
+     106.70534
+    ]
+   },
+   {
+    "id": 1497614850,
+    "name": "Cầu vượt Quốc lộ 13",
+    "ref": "CT.40",
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.96517,
+     106.69144
+    ]
+   },
+   {
+    "id": 1497614851,
+    "name": "Cầu vượt Quốc lộ 13",
+    "ref": "CT.40",
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.96338,
+     106.69001
+    ]
+   },
+   {
+    "id": 1563429843,
+    "name": "Đại lộ Bình Dương",
+    "ref": "QL.13",
+    "hw": "trunk",
+    "maxspeed": "70",
+    "moto": "60",
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.94066,
+     106.70871
+    ]
+   },
+   {
+    "id": 1576270246,
+    "name": "Cầu vượt Quốc lộ 13",
+    "ref": "CT.40",
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.96285,
+     106.68987
+    ]
+   },
+   {
+    "id": 1576270247,
+    "name": "Cầu vượt Quốc lộ 13",
+    "ref": "CT.40",
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.97101,
+     106.69526
+    ]
+   }
+  ]
+ },
+ "QL22": {
+  "total_km": 128.5,
+  "maxspeed_km": {
+   "(không có)": 62.5,
+   "50": 46.4,
+   "60": 16.7,
+   "100": 1.8,
+   "80": 1.0
+  },
+  "moto_km": {},
+  "motorcycle_no_km": 41.2,
+  "samples": [
+   {
+    "id": 210268960,
+    "name": "Phan Văn Khải",
+    "ref": "QL.22",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.99769,
+     106.44393
+    ]
+   },
+   {
+    "id": 210268962,
+    "name": "Phan Văn Khải",
+    "ref": "QL.22",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.99968,
+     106.44207
+    ]
+   },
+   {
+    "id": 210268978,
+    "name": "Phan Văn Khải",
+    "ref": "QL.22",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     11.00902,
+     106.41807
+    ]
+   },
+   {
+    "id": 210268982,
+    "name": "Phan Văn Khải",
+    "ref": "QL.22",
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.9793,
+     106.46708
+    ]
+   },
+   {
+    "id": 330035864,
+    "name": "Lê Quang Đạo",
+    "ref": "QL.22",
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "4",
+    "mid": [
+     10.84714,
+     106.6124
+    ]
+   },
+   {
+    "id": 336808107,
+    "name": "Quốc lộ 22 cũ",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": null,
+    "mid": [
+     11.03295,
+     106.36423
+    ]
+   },
+   {
+    "id": 563178161,
+    "name": "Quốc lộ 22 cũ",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     11.03266,
+     106.36421
+    ]
+   },
+   {
+    "id": 563178805,
+    "name": "Quốc lộ 22 cũ",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": null,
+    "mid": [
+     11.03271,
+     106.36452
+    ]
+   },
+   {
+    "id": 564176834,
+    "name": "Quốc lộ 22 cũ",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     11.03169,
+     106.36206
+    ]
+   },
+   {
+    "id": 564176836,
+    "name": "Quốc lộ 22 cũ",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     11.03066,
+     106.35731
+    ]
+   },
+   {
+    "id": 564176840,
+    "name": "Quốc lộ 22 cũ",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     11.03301,
+     106.35447
+    ]
+   },
+   {
+    "id": 564176843,
+    "name": "Quốc lộ 22 cũ",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     11.03568,
+     106.35138
+    ]
+   },
+   {
+    "id": 564176844,
+    "name": "Quốc lộ 22 cũ",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     11.03357,
+     106.35367
+    ]
+   },
+   {
+    "id": 606188822,
+    "name": "Lê Quang Đạo",
+    "ref": "QL.22",
+    "hw": "trunk",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "1",
+    "mid": [
+     10.84542,
+     106.61374
+    ]
+   },
+   {
+    "id": 606188824,
+    "name": "Lê Quang Đạo",
+    "ref": "QL.22",
+    "hw": "trunk",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "1",
+    "mid": [
+     10.90025,
+     106.57549
+    ]
+   }
+  ]
+ },
+ "QL1K": {
+  "total_km": 47.8,
+  "maxspeed_km": {
+   "(không có)": 45.9,
+   "50": 1.8,
+   "60": 0.1
+  },
+  "moto_km": {},
+  "motorcycle_no_km": 6.0,
+  "samples": [
+   {
+    "id": 563864498,
+    "name": "Nguyễn Ái Quốc",
+    "ref": "QL.1K",
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": "yes",
+    "lanes": "1",
+    "mid": [
+     10.95626,
+     106.82125
+    ]
+   },
+   {
+    "id": 563868054,
+    "name": "Nguyễn Ái Quốc",
+    "ref": "QL.1K",
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": "yes",
+    "lanes": "1",
+    "mid": [
+     10.95591,
+     106.82407
+    ]
+   },
+   {
+    "id": 1581817611,
+    "name": "Quốc lộ 1K",
+    "ref": "QL.1K",
+    "hw": "primary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.90746,
+     106.79486
+    ]
+   }
+  ]
+ },
+ "Võ Văn Kiệt": {
+  "total_km": 84.1,
+  "maxspeed_km": {
+   "(không có)": 38.0,
+   "60": 21.4,
+   "50": 19.3,
+   "80": 4.1,
+   "40": 0.8,
+   "90": 0.5
+  },
+  "moto_km": {
+   "50": 0.3
+  },
+  "motorcycle_no_km": 22.2,
+  "samples": [
+   {
+    "id": 696439674,
+    "name": "Võ Văn Kiệt",
+    "ref": "ĐT.994B",
+    "hw": "primary",
+    "maxspeed": "90",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.41161,
+     107.15789
+    ]
+   },
+   {
+    "id": 696439675,
+    "name": "Võ Văn Kiệt",
+    "ref": "ĐT.994B",
+    "hw": "primary",
+    "maxspeed": "90",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.41221,
+     107.15841
+    ]
+   },
+   {
+    "id": 1269280425,
+    "name": "Võ Văn Kiệt",
+    "ref": "ĐT.994",
+    "hw": "secondary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.42368,
+     107.17972
+    ]
+   },
+   {
+    "id": 1296634575,
+    "name": "Võ Văn Kiệt",
+    "ref": "ĐT.994",
+    "hw": "secondary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": null,
+    "mid": [
+     10.44436,
+     107.28266
+    ]
+   },
+   {
+    "id": 1308527298,
+    "name": "Võ Văn Kiệt",
+    "ref": "ĐT.994",
+    "hw": "secondary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.42283,
+     107.18115
+    ]
+   },
+   {
+    "id": 1434144574,
+    "name": "Võ Văn Kiệt",
+    "ref": "ĐT.994",
+    "hw": "secondary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": null,
+    "mid": [
+     10.44561,
+     107.28441
+    ]
+   },
+   {
+    "id": 1434144575,
+    "name": "Võ Văn Kiệt",
+    "ref": "ĐT.994",
+    "hw": "secondary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": null,
+    "mid": [
+     10.44422,
+     107.28253
+    ]
+   },
+   {
+    "id": 1434144585,
+    "name": "Võ Văn Kiệt",
+    "ref": "ĐT.994",
+    "hw": "secondary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": null,
+    "mid": [
+     10.44425,
+     107.28278
+    ]
+   },
+   {
+    "id": 136737354,
+    "name": "Võ Văn Kiệt",
+    "ref": null,
+    "hw": "trunk_link",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.71495,
+     106.6001
+    ]
+   },
+   {
+    "id": 136737358,
+    "name": "Võ Văn Kiệt",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": null,
+    "mid": [
+     10.71806,
+     106.60282
+    ]
+   },
+   {
+    "id": 136737359,
+    "name": "Võ Văn Kiệt",
+    "ref": null,
+    "hw": "trunk_link",
+    "maxspeed": "40",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": null,
+    "mid": [
+     10.71794,
+     106.60198
+    ]
+   },
+   {
+    "id": 136804170,
+    "name": "Cầu vượt Võ Văn Kiệt 1",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "40",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.71681,
+     106.60058
+    ]
+   },
+   {
+    "id": 138346633,
+    "name": "Võ Văn Kiệt",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.73181,
+     106.62991
+    ]
+   },
+   {
+    "id": 138346634,
+    "name": "Võ Văn Kiệt",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.73167,
+     106.63001
+    ]
+   },
+   {
+    "id": 189017034,
+    "name": "Đường Võ Văn Kiệt",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.75077,
+     106.66522
+    ]
+   }
+  ]
+ },
+ "Mai Chí Thọ": {
+  "total_km": 25.2,
+  "maxspeed_km": {
+   "60": 12.4,
+   "80": 6.5,
+   "(không có)": 4.5,
+   "40": 0.9,
+   "50": 0.8
+  },
+  "moto_km": {},
+  "motorcycle_no_km": 12.0,
+  "samples": [
+   {
+    "id": 32585389,
+    "name": "Mai Chí Thọ",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.79133,
+     106.75171
+    ]
+   },
+   {
+    "id": 57533826,
+    "name": "Mai Chí Thọ",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.79041,
+     106.75152
+    ]
+   },
+   {
+    "id": 138564817,
+    "name": "Mai Chí Thọ",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.77953,
+     106.73454
+    ]
+   },
+   {
+    "id": 138564822,
+    "name": "Mai Chí Thọ",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.78094,
+     106.73784
+    ]
+   },
+   {
+    "id": 138564833,
+    "name": "Mai Chí Thọ",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.77586,
+     106.72805
+    ]
+   },
+   {
+    "id": 138564838,
+    "name": "Mai Chí Thọ",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.77645,
+     106.72849
+    ]
+   },
+   {
+    "id": 172513404,
+    "name": "Mai Chí Thọ",
+    "ref": null,
+    "hw": "trunk_link",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "1",
+    "mid": [
+     10.80492,
+     106.75351
+    ]
+   },
+   {
+    "id": 172513408,
+    "name": "Mai Chí Thọ",
+    "ref": null,
+    "hw": "trunk_link",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "1",
+    "mid": [
+     10.80402,
+     106.75314
+    ]
+   },
+   {
+    "id": 172513439,
+    "name": "Mai Chí Thọ",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": null,
+    "mid": [
+     10.80624,
+     106.75467
+    ]
+   },
+   {
+    "id": 211830783,
+    "name": "Mai Chí Thọ",
+    "ref": null,
+    "hw": "secondary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.80542,
+     106.75465
+    ]
+   },
+   {
+    "id": 218265678,
+    "name": "Mai Chí Thọ",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.77216,
+     106.72073
+    ]
+   },
+   {
+    "id": 218265681,
+    "name": "Mai Chí Thọ",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.77994,
+     106.73506
+    ]
+   },
+   {
+    "id": 218265682,
+    "name": "Mai Chí Thọ",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.77961,
+     106.73558
+    ]
+   },
+   {
+    "id": 218265684,
+    "name": "Mai Chí Thọ",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.77154,
+     106.71696
+    ]
+   },
+   {
+    "id": 218265687,
+    "name": "Mai Chí Thọ",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.77367,
+     106.72279
+    ]
+   }
+  ]
+ },
+ "Phạm Văn Đồng": {
+  "total_km": 40.8,
+  "maxspeed_km": {
+   "50": 15.1,
+   "(không có)": 9.7,
+   "60": 8.0,
+   "80": 8.0
+  },
+  "moto_km": {
+   "50": 12.0,
+   "60": 0.0
+  },
+  "motorcycle_no_km": 1.5,
+  "samples": [
+   {
+    "id": 241738918,
+    "name": "Phạm Văn Đồng",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": "50",
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.81545,
+     106.68213
+    ]
+   },
+   {
+    "id": 294036467,
+    "name": "Phạm Văn Đồng",
+    "ref": "ĐT.769B",
+    "hw": "secondary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.76266,
+     106.94829
+    ]
+   },
+   {
+    "id": 305402846,
+    "name": "Phạm Văn Đồng",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.83891,
+     106.7351
+    ]
+   },
+   {
+    "id": 359552105,
+    "name": "Phạm Văn Đồng",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.82018,
+     106.69299
+    ]
+   },
+   {
+    "id": 368788792,
+    "name": "Phạm Văn Đồng",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.83703,
+     106.73267
+    ]
+   },
+   {
+    "id": 368789462,
+    "name": "Phạm Văn Đồng",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.82666,
+     106.71792
+    ]
+   },
+   {
+    "id": 402927263,
+    "name": "Phạm Văn Đồng",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": "50",
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.82293,
+     106.70335
+    ]
+   },
+   {
+    "id": 402927266,
+    "name": "Phạm Văn Đồng",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": "50",
+    "motorcycle": null,
+    "lanes": "4",
+    "mid": [
+     10.82705,
+     106.71819
+    ]
+   },
+   {
+    "id": 404516658,
+    "name": "Phạm Văn Đồng",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": "designated",
+    "lanes": "2",
+    "mid": [
+     10.82281,
+     106.70339
+    ]
+   },
+   {
+    "id": 404516659,
+    "name": "Phạm Văn Đồng",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": "designated",
+    "lanes": "2",
+    "mid": [
+     10.82141,
+     106.69653
+    ]
+   },
+   {
+    "id": 404516660,
+    "name": "Phạm Văn Đồng",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": "designated",
+    "lanes": "2",
+    "mid": [
+     10.82046,
+     106.69292
+    ]
+   },
+   {
+    "id": 404516716,
+    "name": "Phạm Văn Đồng",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": null,
+    "mid": [
+     10.81402,
+     106.67933
+    ]
+   },
+   {
+    "id": 404517245,
+    "name": "Phạm Văn Đồng",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": null,
+    "mid": [
+     10.81916,
+     106.68971
+    ]
+   },
+   {
+    "id": 404517247,
+    "name": "Phạm Văn Đồng",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.81561,
+     106.68183
+    ]
+   },
+   {
+    "id": 404517252,
+    "name": "Phạm Văn Đồng",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "50",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": null,
+    "mid": [
+     10.81536,
+     106.6822
+    ]
+   }
+  ]
+ },
+ "Nguyễn Văn Linh": {
+  "total_km": 93.6,
+  "maxspeed_km": {
+   "60": 30.6,
+   "80": 29.2,
+   "(không có)": 28.1,
+   "50": 5.6,
+   "40": 0.1
+  },
+  "moto_km": {},
+  "motorcycle_no_km": 38.4,
+  "samples": [
+   {
+    "id": 34719375,
+    "name": "Nguyễn Văn Linh",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.70844,
+     106.64129
+    ]
+   },
+   {
+    "id": 34719376,
+    "name": "Nguyễn Văn Linh",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.70811,
+     106.64087
+    ]
+   },
+   {
+    "id": 34719377,
+    "name": "Nguyễn Văn Linh",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.69997,
+     106.62966
+    ]
+   },
+   {
+    "id": 34729945,
+    "name": "Nguyễn Văn Linh",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.6922,
+     106.60391
+    ]
+   },
+   {
+    "id": 182599682,
+    "name": "Nguyễn Văn Linh",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.69708,
+     106.61996
+    ]
+   },
+   {
+    "id": 182599717,
+    "name": "Nguyễn Văn Linh",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "3",
+    "mid": [
+     10.6977,
+     106.62395
+    ]
+   },
+   {
+    "id": 182599806,
+    "name": "Nguyễn Văn Linh",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.69859,
+     106.62543
+    ]
+   },
+   {
+    "id": 182599868,
+    "name": "Nguyễn Văn Linh",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.69986,
+     106.63044
+    ]
+   },
+   {
+    "id": 182599869,
+    "name": "Nguyễn Văn Linh",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.69799,
+     106.62499
+    ]
+   },
+   {
+    "id": 182599873,
+    "name": "Nguyễn Văn Linh",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.69648,
+     106.61778
+    ]
+   },
+   {
+    "id": 182599879,
+    "name": "Nguyễn Văn Linh",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.69832,
+     106.62444
+    ]
+   },
+   {
+    "id": 182599905,
+    "name": "Nguyễn Văn Linh",
+    "ref": null,
+    "hw": "trunk",
+    "maxspeed": "80",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "3",
+    "mid": [
+     10.69819,
+     106.62572
+    ]
+   },
+   {
+    "id": 210918275,
+    "name": "Nguyễn Văn Linh",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.71111,
+     106.64445
+    ]
+   },
+   {
+    "id": 210921259,
+    "name": "Nguyễn Văn Linh",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.70822,
+     106.64079
+    ]
+   },
+   {
+    "id": 210921301,
+    "name": "Nguyễn Văn Linh",
+    "ref": null,
+    "hw": "primary",
+    "maxspeed": "60",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.70446,
+     106.63583
+    ]
+   }
+  ]
+ },
+ "Cao tốc (motorway)": {
+  "total_km": 625.9,
+  "maxspeed_km": {
+   "100": 252.9,
+   "120": 215.8,
+   "80": 110.7,
+   "90": 37.8,
+   "(không có)": 5.3,
+   "60": 3.4
+  },
+  "moto_km": {
+   "50": 2.1
+  },
+  "motorcycle_no_km": 376.0,
+  "samples": [
+   {
+    "id": 126169068,
+    "name": "Đường cao tốc Thành phố Hồ Chí Minh – Trung Lương",
+    "ref": "CT.01",
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.64977,
+     106.47224
+    ]
+   },
+   {
+    "id": 129963818,
+    "name": "Đường cao tốc Thành phố Hồ Chí Minh – Trung Lương",
+    "ref": "CT.01",
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "2",
+    "mid": [
+     10.65591,
+     106.48338
+    ]
+   },
+   {
+    "id": 129963824,
+    "name": "Đường cao tốc Thành phố Hồ Chí Minh – Trung Lương",
+    "ref": "CT.01",
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "2",
+    "mid": [
+     10.66422,
+     106.51237
+    ]
+   },
+   {
+    "id": 136728945,
+    "name": "Đường cao tốc Thành phố Hồ Chí Minh – Trung Lương",
+    "ref": "CT.01",
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.64701,
+     106.46803
+    ]
+   },
+   {
+    "id": 136728949,
+    "name": "Đường cao tốc Thành phố Hồ Chí Minh – Trung Lương",
+    "ref": "CT.01",
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "2",
+    "mid": [
+     10.65565,
+     106.482
+    ]
+   },
+   {
+    "id": 136728971,
+    "name": "Đường cao tốc Thành phố Hồ Chí Minh – Trung Lương",
+    "ref": "CT.01",
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.64502,
+     106.46548
+    ]
+   },
+   {
+    "id": 136728978,
+    "name": "Đường cao tốc Thành phố Hồ Chí Minh – Trung Lương",
+    "ref": "CT.01",
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "2",
+    "mid": [
+     10.65311,
+     106.47666
+    ]
+   },
+   {
+    "id": 146239287,
+    "name": "Đường cao tốc Thành phố Hồ Chí Minh – Trung Lương",
+    "ref": "CT.01",
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.55397,
+     106.3742
+    ]
+   },
+   {
+    "id": 146239289,
+    "name": "Cao tốc Thành phố Hồ Chí Minh – Trung Lương",
+    "ref": "CT.01",
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "2",
+    "mid": [
+     10.55376,
+     106.37442
+    ]
+   },
+   {
+    "id": 146239291,
+    "name": "Đường cao tốc Thành phố Hồ Chí Minh – Trung Lương",
+    "ref": "CT.01",
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": null,
+    "lanes": "2",
+    "mid": [
+     10.56158,
+     106.38084
+    ]
+   },
+   {
+    "id": 211430060,
+    "name": "Đường cao tốc Thành phố Hồ Chí Minh – Trung Lương",
+    "ref": "CT.01",
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "2",
+    "mid": [
+     10.66836,
+     106.52655
+    ]
+   },
+   {
+    "id": 397354748,
+    "name": "Đường cao tốc Thành phố Hồ Chí Minh – Trung Lương",
+    "ref": null,
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "2",
+    "mid": [
+     10.6794,
+     106.55039
+    ]
+   },
+   {
+    "id": 397354749,
+    "name": "Đường cao tốc Thành phố Hồ Chí Minh – Trung Lương",
+    "ref": null,
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "2",
+    "mid": [
+     10.67206,
+     106.5346
+    ]
+   },
+   {
+    "id": 397354756,
+    "name": "Đường cao tốc Thành phố Hồ Chí Minh – Trung Lương",
+    "ref": null,
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "2",
+    "mid": [
+     10.67926,
+     106.55046
+    ]
+   },
+   {
+    "id": 397360092,
+    "name": "Đường cao tốc Thành phố Hồ Chí Minh – Trung Lương",
+    "ref": "CT.01",
+    "hw": "motorway",
+    "maxspeed": "100",
+    "moto": null,
+    "motorcycle": "no",
+    "lanes": "2",
+    "mid": [
+     10.65683,
+     106.48553
+    ]
+   }
+  ]
+ },
+ "_all_major": {
+  "ways": 17195,
+  "total_km": 8966,
+  "with_maxspeed_km": 2635,
+  "pct": 29.4
+ }
+}
