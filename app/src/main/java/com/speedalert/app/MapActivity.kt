@@ -1,19 +1,24 @@
 package com.speedalert.app
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.ContentValues
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.location.Geocoder
+import android.location.Location
 import android.os.Bundle
 import android.provider.MediaStore
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
+import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
@@ -29,79 +34,119 @@ import androidx.camera.video.VideoCapture
 import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.speedalert.app.core.AppSettings
+import com.speedalert.app.core.NavState
+import com.speedalert.app.core.NavigationManager
+import com.speedalert.app.core.Place
+import com.speedalert.app.core.Route
+import com.speedalert.app.core.RoutingClient
+import com.speedalert.app.core.SearchClient
 import com.speedalert.app.data.AppDatabase
+import com.speedalert.app.data.GeoPoint
+import com.speedalert.app.service.LocationTrackingService
 import com.speedalert.app.service.SpeedState
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import org.maplibre.android.MapLibre
 import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.annotations.Polyline
 import org.maplibre.android.annotations.PolylineOptions
-import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.geometry.LatLngBounds
+import org.maplibre.android.location.LocationComponentActivationOptions
+import org.maplibre.android.location.LocationComponentOptions
+import org.maplibre.android.location.OnCameraTrackingChangedListener
+import org.maplibre.android.location.modes.CameraMode
+import org.maplibre.android.location.modes.RenderMode
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
-import java.net.HttpURLConnection
-import java.net.URL
+import org.maplibre.android.maps.Style
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Kết quả định tuyến: toạ độ đường đi, quãng đường, thời gian ước tính, các bước rẽ. */
-private data class RouteResult(
-    val points: List<LatLng>,
-    val distanceMeters: Double,
-    val durationSeconds: Double,
-    val steps: List<String>
-)
-
 /**
- * Màn hình bản đồ: OpenFreeMap (phủ Việt Nam, miễn phí), chấm vị trí hiện
- * tại TỰ ĐỘNG BÁM theo GPS (tạm tắt khi tìm kiếm/chỉ đường, bật lại bằng nút
- * "Vị trí của tôi"), thanh TÌM KIẾM ĐỊA CHỈ, nút CHỈ ĐƯỜNG (dùng OSRM - dịch
- * vụ định tuyến miễn phí, hồ sơ "ô tô" chung vì không có hồ sơ xe máy miễn
- * phí - CHƯA loại trừ cao tốc cấm xe máy, có cảnh báo rõ trong hộp thoại),
- * và các camera bắn tốc độ đã lưu.
- *
- * Chạm vào chấm vị trí mở bảng thông tin: tốc độ, giới hạn tốc độ, tên
- * đường, địa chỉ, và công tắc "Xem & tự động quay camera" (quay + lưu video
- * như camera hành trình ngay trong lúc xem).
+ * Màn hình bản đồ & dẫn đường kiểu Vietmap:
+ * - Chấm định vị có mũi tên hướng đi + vòng sai số, bản đồ tự bám theo.
+ * - Đồng hồ tốc độ + biển giới hạn tốc độ + cảnh báo camera ở góc trái.
+ * - Tìm kiếm có danh sách kết quả (ưu tiên gần bạn); nhấn giữ bản đồ để chọn điểm.
+ * - Xem trước tuyến (quãng đường / thời gian), bắt đầu dẫn đường: banner bước
+ *   rẽ, quãng đường & giờ đến, giọng nói, tự tính lại khi đi lệch (trong Service).
+ * - Chạm chấm định vị: bảng thông tin + bật camera quay hành trình.
  */
 class MapActivity : ComponentActivity() {
 
-    private lateinit var mapView: MapView
-    private lateinit var mapLibreMap: MapLibreMap
-    private lateinit var directionsButton: Button
-    private val scope = CoroutineScope(Dispatchers.Main)
-    private var myLocationMarker: Marker? = null
-    private var searchResultMarker: Marker? = null
-    private var routePolyline: Polyline? = null
-    private var lastSearchedLatLng: LatLng? = null
-    private var lastRouteError: String? = null
+    companion object {
+        private const val STYLE_URL = "https://tiles.openfreemap.org/styles/bright"
+        private val DEFAULT_CENTER = LatLng(10.7769, 106.7009)
+    }
 
-    // Khi true, bản đồ tự động bám theo vị trí GPS mỗi lần cập nhật. Tạm tắt
-    // khi tìm kiếm/chỉ đường một nơi khác, bật lại qua nút "Vị trí của tôi".
-    private var followEnabled = true
+    private lateinit var mapView: MapView
+    private var map: MapLibreMap? = null
+    private var locationReady = false
+
+    private lateinit var searchInput: EditText
+    private lateinit var resultsScroll: ScrollView
+    private lateinit var resultsList: LinearLayout
+    private lateinit var navBanner: LinearLayout
+    private lateinit var bannerArrow: TextView
+    private lateinit var bannerDistance: TextView
+    private lateinit var bannerText: TextView
+    private lateinit var speedPanel: LinearLayout
+    private lateinit var speedBubble: TextView
+    private lateinit var limitSign: TextView
+    private lateinit var cameraChip: TextView
+    private lateinit var gpsChip: TextView
+    private lateinit var dataChip: TextView
+    private lateinit var voiceButton: Button
+    private lateinit var placeCard: LinearLayout
+    private lateinit var placeName: TextView
+    private lateinit var placeAddress: TextView
+    private lateinit var routeInfo: TextView
+    private lateinit var directionsButton: Button
+    private lateinit var startNavButton: Button
+    private lateinit var navBottomBar: LinearLayout
+    private lateinit var navRemaining: TextView
+
+    private var selectedPlace: Place? = null
+    private var previewRoute: Route? = null
+    private var placeMarker: Marker? = null
+    private var routeLine: Polyline? = null
+    private var drawnRoute: Route? = null
+    private val cameraMarkers = mutableListOf<Marker>()
+    private var cameraCountShown = -1
+    private var lastDataStatus = ""
+    private var following = true
 
     private var liveCameraProvider: ProcessCameraProvider? = null
     private var liveRecording: Recording? = null
-
     private var pendingPreviewView: PreviewView? = null
     private var pendingSwitch: Switch? = null
+
+    private val locationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        if (results[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            results[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        ) {
+            LocationTrackingService.start(this)
+            map?.style?.let { enableLocationComponent(it) }
+        } else {
+            Toast.makeText(this, "Cần quyền vị trí để định vị và chỉ đường", Toast.LENGTH_LONG).show()
+        }
+    }
 
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
-        val cameraGranted = results[Manifest.permission.CAMERA] == true
-        val audioGranted = results[Manifest.permission.RECORD_AUDIO] == true
         val previewView = pendingPreviewView
-        if (cameraGranted && audioGranted && previewView != null) {
+        if (results[Manifest.permission.CAMERA] == true && results[Manifest.permission.RECORD_AUDIO] == true && previewView != null) {
             startLiveRecording(previewView)
         } else {
             pendingSwitch?.isChecked = false
@@ -112,262 +157,457 @@ class MapActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         MapLibre.getInstance(this)
+        AppSettings.load(this)
         setContentView(R.layout.activity_map)
+        bindViews()
 
-        val searchInput = findViewById<EditText>(R.id.searchInput)
-        val searchButton = findViewById<Button>(R.id.searchButton)
-        val myLocationButton = findViewById<Button>(R.id.myLocationButton)
+        mapView.onCreate(savedInstanceState)
+        mapView.getMapAsync { m ->
+            map = m
+            m.uiSettings.isCompassEnabled = true
+            m.uiSettings.setCompassMargins(0, 260, 24, 0)
+            val start = SpeedState.state.value.let {
+                if (it.lastLat != null && it.lastLon != null) LatLng(it.lastLat, it.lastLon) else DEFAULT_CENTER
+            }
+            m.moveCamera(CameraUpdateFactory.newLatLngZoom(start, 16.0))
+            m.setStyle(Style.Builder().fromUri(STYLE_URL)) { style ->
+                enableLocationComponent(style)
+                reloadCameraMarkers(force = true)
+                drawnRoute = null
+                renderNav(NavigationManager.state.value)
+            }
+            m.addOnMapLongClickListener { point ->
+                selectPlace(Place("Điểm đã chọn", "Đang tra địa chỉ...", GeoPoint(point.latitude, point.longitude)), lookupAddress = true)
+                true
+            }
+        }
+
+        ensureLocationPermission()
+        observeState()
+    }
+
+    private fun bindViews() {
+        mapView = findViewById(R.id.mapView)
+        searchInput = findViewById(R.id.searchInput)
+        resultsScroll = findViewById(R.id.resultsScroll)
+        resultsList = findViewById(R.id.resultsList)
+        navBanner = findViewById(R.id.navBanner)
+        bannerArrow = findViewById(R.id.bannerArrow)
+        bannerDistance = findViewById(R.id.bannerDistance)
+        bannerText = findViewById(R.id.bannerText)
+        speedPanel = findViewById(R.id.speedPanel)
+        speedBubble = findViewById(R.id.speedBubble)
+        limitSign = findViewById(R.id.limitSign)
+        cameraChip = findViewById(R.id.cameraChip)
+        gpsChip = findViewById(R.id.gpsChip)
+        dataChip = findViewById(R.id.dataChip)
+        voiceButton = findViewById(R.id.voiceButton)
+        placeCard = findViewById(R.id.placeCard)
+        placeName = findViewById(R.id.placeName)
+        placeAddress = findViewById(R.id.placeAddress)
+        routeInfo = findViewById(R.id.routeInfo)
         directionsButton = findViewById(R.id.directionsButton)
+        startNavButton = findViewById(R.id.startNavButton)
+        navBottomBar = findViewById(R.id.navBottomBar)
+        navRemaining = findViewById(R.id.navRemaining)
 
-        searchButton.setOnClickListener { performSearch(searchInput.text.toString()) }
+        findViewById<Button>(R.id.searchButton).setOnClickListener { performSearch() }
         searchInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                performSearch(searchInput.text.toString())
-                true
-            } else {
-                false
-            }
+                performSearch(); true
+            } else false
         }
-        myLocationButton.setOnClickListener { recenterOnMyLocation() }
-        directionsButton.setOnClickListener { requestDirections() }
+        findViewById<Button>(R.id.recenterButton).setOnClickListener { recenter() }
+        findViewById<Button>(R.id.placeClose).setOnClickListener { clearPlace() }
+        directionsButton.setOnClickListener { selectedPlace?.let { computeRoute(it) } }
+        startNavButton.setOnClickListener { startNavigation() }
+        findViewById<Button>(R.id.endNavButton).setOnClickListener { endNavigation() }
 
-        mapView = findViewById(R.id.mapView)
-        mapView.onCreate(savedInstanceState)
-        mapView.getMapAsync { map ->
-            mapLibreMap = map
-            map.setStyle("https://tiles.openfreemap.org/styles/bright")
+        updateVoiceButton()
+        voiceButton.setOnClickListener {
+            AppSettings.setVoiceEnabled(this, !AppSettings.voiceEnabled.value)
+            updateVoiceButton()
+            Toast.makeText(
+                this,
+                if (AppSettings.voiceEnabled.value) "Đã bật giọng nói" else "Đã tắt giọng nói (chỉ còn tiếng bíp)",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
 
-            val current = SpeedState.state.value
-            val startLat = current.lastLat ?: DEFAULT_LAT
-            val startLon = current.lastLon ?: DEFAULT_LON
-            map.cameraPosition = CameraPosition.Builder()
-                .target(LatLng(startLat, startLon))
-                .zoom(16.0)
+    private fun updateVoiceButton() {
+        voiceButton.text = if (AppSettings.voiceEnabled.value) "🔊" else "🔇"
+    }
+
+    private fun ensureLocationPermission() {
+        val fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (fine) {
+            LocationTrackingService.start(this)
+        } else {
+            locationPermissionLauncher.launch(
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+            )
+        }
+    }
+
+    // ---------------------------------------------------------------- Định vị
+
+    @SuppressLint("MissingPermission")
+    private fun enableLocationComponent(style: Style) {
+        val m = map ?: return
+        val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (!granted || locationReady) return
+
+        val lc = m.locationComponent
+        val options = LocationComponentOptions.builder(this)
+            .accuracyAlpha(0.18f)
+            .accuracyColor(Color.parseColor("#1A73E8"))
+            .build()
+        lc.activateLocationComponent(
+            LocationComponentActivationOptions.builder(this, style)
+                .locationComponentOptions(options)
+                .useDefaultLocationEngine(false)
                 .build()
+        )
+        lc.isLocationComponentEnabled = true
+        lc.renderMode = RenderMode.GPS
+        lc.cameraMode = CameraMode.TRACKING_GPS_NORTH
+        lc.addOnCameraTrackingChangedListener(object : OnCameraTrackingChangedListener {
+            override fun onCameraTrackingDismissed() {
+                following = false
+            }
 
-            loadSavedCameras(map)
-            observeMyLocation(map)
+            override fun onCameraTrackingChanged(currentMode: Int) {}
+        })
+        lc.addOnLocationClickListener { showLocationInfoDialog() }
+        locationReady = true
+        SpeedState.state.value.location?.let { lc.forceLocationUpdate(it) }
+    }
 
-            map.setOnMarkerClickListener { marker ->
-                if (marker.title == MY_LOCATION_TITLE) {
-                    showLocationInfoDialog(marker.position.latitude, marker.position.longitude)
-                    true
-                } else {
-                    false
-                }
+    private fun recenter() {
+        val m = map ?: return
+        following = true
+        if (locationReady) {
+            val nav = NavigationManager.state.value.active
+            m.locationComponent.cameraMode = if (nav) CameraMode.TRACKING_GPS else CameraMode.TRACKING_GPS_NORTH
+            m.locationComponent.zoomWhileTracking(if (nav) 17.5 else 16.5)
+            m.locationComponent.tiltWhileTracking(if (nav) 50.0 else 0.0)
+        } else {
+            val s = SpeedState.state.value
+            if (s.lastLat != null && s.lastLon != null) {
+                m.easeCamera(CameraUpdateFactory.newLatLngZoom(LatLng(s.lastLat, s.lastLon), 16.5), 600)
             }
         }
     }
 
-    /** Tìm địa chỉ (geocoding thuận) và đưa bản đồ tới đó, giống thanh tìm kiếm Google Maps. */
-    private fun performSearch(rawQuery: String) {
-        val query = rawQuery.trim()
-        if (query.isEmpty() || !::mapLibreMap.isInitialized) return
-
-        scope.launch {
-            val address = withContext(Dispatchers.IO) {
-                try {
-                    if (!Geocoder.isPresent()) return@withContext null
-                    val geocoder = Geocoder(this@MapActivity, Locale("vi", "VN"))
-                    @Suppress("DEPRECATION")
-                    geocoder.getFromLocationName(query, 1)?.firstOrNull()
-                } catch (e: Exception) {
-                    null
-                }
+    private fun observeState() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch { SpeedState.state.collect { renderSpeed(it) } }
+                launch { NavigationManager.state.collect { renderNav(it) } }
             }
+        }
+    }
 
-            if (address == null) {
-                Toast.makeText(this@MapActivity, "Không tìm thấy địa chỉ \"$query\"", Toast.LENGTH_SHORT).show()
+    private fun renderSpeed(s: SpeedState.State) {
+        speedBubble.text = "${s.currentSpeedKmh}\nkm/h"
+        speedBubble.setBackgroundResource(if (s.overLimit) R.drawable.bg_speed_bubble_over else R.drawable.bg_speed_bubble)
+        speedBubble.setTextColor(if (s.overLimit) Color.WHITE else Color.parseColor("#212121"))
+
+        when {
+            s.speedLimitKmh != null -> {
+                limitSign.visibility = View.VISIBLE
+                limitSign.text = s.speedLimitKmh.toString()
+                limitSign.textSize = 22f
+            }
+            s.roadNote.isNotBlank() -> {
+                limitSign.visibility = View.VISIBLE
+                limitSign.text = "CẤM\nXE MÁY"
+                limitSign.textSize = 9f
+            }
+            else -> limitSign.visibility = View.GONE
+        }
+
+        if (s.cameraDistanceM != null) {
+            cameraChip.visibility = View.VISIBLE
+            cameraChip.text = "📷 ${s.cameraDistanceM} m"
+        } else cameraChip.visibility = View.GONE
+
+        gpsChip.text = when {
+            s.accuracyM == null -> "Đang dò GPS..."
+            s.gpsWeak -> "GPS yếu ±${s.accuracyM.toInt()}m"
+            else -> "GPS ±${s.accuracyM.toInt()}m"
+        }
+        val road = listOf(s.roadName, s.roadNote).filter { it.isNotBlank() }.joinToString(" - ")
+        dataChip.text = if (road.isNotBlank()) "$road  •  ${s.dataStatus}" else s.dataStatus
+
+        val nav = NavigationManager.state.value
+        val m = map
+        if (m != null && locationReady) {
+            val loc = s.location
+            if (loc != null) {
+                val shown = if (nav.active && nav.snapped != null) {
+                    Location(loc).apply {
+                        latitude = nav.snapped.lat
+                        longitude = nav.snapped.lon
+                        nav.snappedBearing?.let { bearing = it.toFloat() }
+                    }
+                } else loc
+                m.locationComponent.forceLocationUpdate(shown)
+            }
+        }
+        if (s.dataStatus != lastDataStatus) {
+            lastDataStatus = s.dataStatus
+            reloadCameraMarkers(force = false)
+        }
+    }
+
+    // ---------------------------------------------------------------- Camera phạt nguội trên bản đồ
+
+    private fun reloadCameraMarkers(force: Boolean) {
+        val m = map ?: return
+        lifecycleScope.launch {
+            val cams = withContext(Dispatchers.IO) { AppDatabase.getInstance(applicationContext).cameraDao().getAll() }
+            if (!force && cams.size == cameraCountShown) return@launch
+            cameraMarkers.forEach { m.removeMarker(it) }
+            cameraMarkers.clear()
+            cams.take(500).forEach { cam ->
+                val title = if (cam.maxspeed > 0) "Camera phạt nguội - ${cam.maxspeed} km/h" else "Camera phạt nguội"
+                cameraMarkers.add(m.addMarker(MarkerOptions().position(LatLng(cam.lat, cam.lon)).title(title)))
+            }
+            cameraCountShown = cams.size
+        }
+    }
+
+    // ---------------------------------------------------------------- Tìm kiếm
+
+    private fun performSearch() {
+        val query = searchInput.text.toString().trim()
+        if (query.isEmpty()) return
+        hideKeyboard()
+        resultsList.removeAllViews()
+        resultsList.addView(resultRow("Đang tìm \"$query\"...", "", null))
+        resultsScroll.visibility = View.VISIBLE
+
+        val s = SpeedState.state.value
+        val near = if (s.lastLat != null && s.lastLon != null) GeoPoint(s.lastLat, s.lastLon) else null
+        lifecycleScope.launch {
+            val places = withContext(Dispatchers.IO) { SearchClient.search(applicationContext, query, near) }
+            resultsList.removeAllViews()
+            if (places.isEmpty()) {
+                resultsList.addView(resultRow("Không tìm thấy \"$query\"", "Thử ghi rõ hơn: số nhà, tên đường, quận/huyện", null))
                 return@launch
             }
-
-            followEnabled = false
-            val latLng = LatLng(address.latitude, address.longitude)
-            lastSearchedLatLng = latLng
-            directionsButton.visibility = View.VISIBLE
-
-            searchResultMarker?.let { mapLibreMap.removeMarker(it) }
-            searchResultMarker = mapLibreMap.addMarker(
-                MarkerOptions().position(latLng).title(query)
-            )
-            mapLibreMap.easeCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16.0), 1000)
+            places.forEach { p ->
+                val dist = near?.let { " • " + NavigationManager.formatDistance(com.speedalert.app.core.GeoUtils.distance(it, p.point)) } ?: ""
+                resultsList.addView(resultRow(p.name, p.address + dist, p))
+            }
         }
     }
 
-    /** Tính đường đi từ vị trí hiện tại tới điểm đã tìm kiếm (OSRM, hồ sơ ô tô chung). */
-    private fun requestDirections() {
-        val dest = lastSearchedLatLng ?: return
-        val state = SpeedState.state.value
-        val startLat = state.lastLat
-        val startLon = state.lastLon
-        if (startLat == null || startLon == null) {
-            Toast.makeText(this, "Chưa xác định được vị trí hiện tại của bạn", Toast.LENGTH_SHORT).show()
+    private fun resultRow(title: String, subtitle: String, place: Place?): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            isClickable = place != null
+        }
+        row.addView(TextView(this).apply {
+            text = title
+            textSize = 15f
+            setTextColor(Color.parseColor("#212121"))
+            maxLines = 1
+        })
+        if (subtitle.isNotBlank()) {
+            row.addView(TextView(this).apply {
+                text = subtitle
+                textSize = 12f
+                setTextColor(Color.parseColor("#777777"))
+                maxLines = 2
+            })
+        }
+        if (place != null) row.setOnClickListener {
+            resultsScroll.visibility = View.GONE
+            selectPlace(place, lookupAddress = false)
+        }
+        return row
+    }
+
+    private fun selectPlace(place: Place, lookupAddress: Boolean) {
+        val m = map ?: return
+        if (NavigationManager.state.value.active) return
+        selectedPlace = place
+        previewRoute = null
+        clearRouteLine()
+        placeMarker?.let { m.removeMarker(it) }
+        placeMarker = m.addMarker(MarkerOptions().position(LatLng(place.point.lat, place.point.lon)).title(place.name))
+
+        if (locationReady) m.locationComponent.cameraMode = CameraMode.NONE
+        following = false
+        m.easeCamera(CameraUpdateFactory.newLatLngZoom(LatLng(place.point.lat, place.point.lon), 16.0), 700)
+
+        placeName.text = place.name
+        placeAddress.text = place.address
+        routeInfo.visibility = View.GONE
+        directionsButton.visibility = View.VISIBLE
+        directionsButton.isEnabled = true
+        directionsButton.text = "Chỉ đường"
+        startNavButton.visibility = View.GONE
+        placeCard.visibility = View.VISIBLE
+        liftSpeedPanel(placeCard)
+
+        if (lookupAddress) {
+            lifecycleScope.launch {
+                val addr = withContext(Dispatchers.IO) { SearchClient.reverse(applicationContext, place.point) }
+                if (selectedPlace === place) {
+                    placeAddress.text = addr ?: "Không tra được địa chỉ"
+                    if (addr != null) selectedPlace = place.copy(address = addr)
+                }
+            }
+        }
+    }
+
+    private fun clearPlace() {
+        val m = map
+        selectedPlace = null
+        previewRoute = null
+        placeMarker?.let { m?.removeMarker(it) }
+        placeMarker = null
+        clearRouteLine()
+        placeCard.visibility = View.GONE
+        liftSpeedPanel(null)
+        recenter()
+    }
+
+    // ---------------------------------------------------------------- Tuyến đường
+
+    private fun computeRoute(place: Place) {
+        val s = SpeedState.state.value
+        if (s.lastLat == null || s.lastLon == null) {
+            Toast.makeText(this, "Chưa xác định được vị trí của bạn. Hãy bật GPS và chờ vài giây.", Toast.LENGTH_LONG).show()
             return
         }
-
-        Toast.makeText(this, "Đang tính đường đi...", Toast.LENGTH_SHORT).show()
-        scope.launch {
-            val result = fetchRoute(startLat, startLon, dest.latitude, dest.longitude)
-            if (result == null) {
-                Toast.makeText(
-                    this@MapActivity,
-                    "Không tính được đường đi (${lastRouteError ?: "không rõ lý do"})",
-                    Toast.LENGTH_LONG
-                ).show()
+        val start = GeoPoint(s.lastLat, s.lastLon)
+        directionsButton.isEnabled = false
+        directionsButton.text = "Đang tính..."
+        lifecycleScope.launch {
+            val route = withContext(Dispatchers.IO) {
+                RoutingClient.route(start, place.point, AppSettings.vehicle.value, s.bearing)
+            }
+            directionsButton.isEnabled = true
+            directionsButton.text = "Chỉ đường"
+            if (selectedPlace !== place && selectedPlace?.point != place.point) return@launch
+            if (route == null) {
+                AlertDialog.Builder(this@MapActivity)
+                    .setTitle("Không tính được đường đi")
+                    .setMessage(
+                        "Lý do: ${RoutingClient.lastError ?: "không rõ"}\n\n" +
+                            "Kiểm tra kết nối mạng rồi thử lại. Nếu điểm đến nằm trong hẻm/khu không có đường xe, hãy chọn điểm gần đường lớn hơn."
+                    )
+                    .setPositiveButton("Đóng", null)
+                    .show()
                 return@launch
             }
-
-            routePolyline?.let { mapLibreMap.removePolyline(it) }
-            routePolyline = mapLibreMap.addPolyline(
-                PolylineOptions().addAll(result.points).color(Color.parseColor("#1E88E5")).width(6f)
-            )
-            followEnabled = false
-
-            val distanceKm = result.distanceMeters / 1000.0
-            val durationMin = (result.durationSeconds / 60.0).toInt()
-            val header = "Quãng đường: %.1f km - Thời gian ước tính: %d phút\n\n".format(distanceKm, durationMin) +
-                "⚠ Tuyến đường tính theo dữ liệu đường ô tô chung (chưa có hồ sơ riêng cho xe máy miễn phí) " +
-                "- có thể gồm đoạn cao tốc cấm xe máy, hãy chú ý biển báo thực tế.\n\n"
-
-            AlertDialog.Builder(this@MapActivity)
-                .setTitle("Chỉ đường")
-                .setMessage(header + result.steps.joinToString("\n"))
-                .setPositiveButton("Đóng", null)
-                .show()
+            previewRoute = route
+            drawRoute(route, fit = true)
+            routeInfo.visibility = View.VISIBLE
+            routeInfo.text = "${NavigationManager.formatDistance(route.distanceMeters)} • ${formatDuration(route.durationSeconds)} • ${route.provider}"
+            directionsButton.visibility = View.GONE
+            startNavButton.visibility = View.VISIBLE
+            liftSpeedPanel(placeCard)
         }
     }
 
-    /** Gọi API định tuyến công cộng OSRM (miễn phí, không cần API key). */
-    private suspend fun fetchRoute(
-        startLat: Double,
-        startLon: Double,
-        endLat: Double,
-        endLon: Double
-    ): RouteResult? = withContext(Dispatchers.IO) {
-        try {
-            val url = "https://router.project-osrm.org/route/v1/driving/" +
-                "$startLon,$startLat;$endLon,$endLat?overview=full&geometries=geojson&steps=true"
-            val connection = URL(url).openConnection() as HttpURLConnection
-            connection.connectTimeout = 10000
-            connection.readTimeout = 10000
-            connection.setRequestProperty("User-Agent", "SpeedAlertApp/1.0 (Android; +https://github.com/QuangMinh02052004/speed-alert-app)")
+    private fun drawRoute(route: Route, fit: Boolean) {
+        val m = map ?: return
+        if (drawnRoute === route && routeLine != null) return
+        clearRouteLine()
+        val pts = route.points.map { LatLng(it.lat, it.lon) }
+        routeLine = m.addPolyline(PolylineOptions().addAll(pts).color(Color.parseColor("#1A73E8")).width(7f))
+        drawnRoute = route
+        if (fit && pts.size >= 2) {
+            val bounds = LatLngBounds.Builder().includes(pts).build()
+            m.easeCamera(CameraUpdateFactory.newLatLngBounds(bounds, dp(60), dp(140), dp(60), dp(260)), 800)
+        }
+    }
 
-            val responseCode = connection.responseCode
-            val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
-            val responseText = stream?.bufferedReader()?.use { it.readText() } ?: ""
-            connection.disconnect()
+    private fun clearRouteLine() {
+        routeLine?.let { map?.removePolyline(it) }
+        routeLine = null
+        drawnRoute = null
+    }
 
-            Log.d("MapActivity", "OSRM url=$url code=$responseCode body=${responseText.take(300)}")
+    private fun startNavigation() {
+        val route = previewRoute ?: return
+        val place = selectedPlace ?: return
+        NavigationManager.start(route, place.point, place.name)
+        placeCard.visibility = View.GONE
+        following = true
+        recenter()
+    }
 
-            if (responseCode !in 200..299) {
-                lastRouteError = "HTTP $responseCode"
-                return@withContext null
-            }
+    private fun endNavigation() {
+        NavigationManager.stop()
+    }
 
-            val json = JSONObject(responseText)
-            val code = json.optString("code")
-            if (code != "Ok") {
-                lastRouteError = "$code: ${json.optString("message")}"
-                return@withContext null
-            }
+    private fun renderNav(nav: NavState) {
+        if (nav.active && nav.route != null) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            navBanner.visibility = View.VISIBLE
+            navBottomBar.visibility = View.VISIBLE
+            findViewById<View>(R.id.searchBar).visibility = View.GONE
+            resultsScroll.visibility = View.GONE
+            placeCard.visibility = View.GONE
+            liftSpeedPanel(navBottomBar)
+            drawRoute(nav.route, fit = false)
 
-            val route = json.getJSONArray("routes").getJSONObject(0)
-            val distanceMeters = route.getDouble("distance")
-            val durationSeconds = route.getDouble("duration")
-
-            val coordsArray = route.getJSONObject("geometry").getJSONArray("coordinates")
-            val points = mutableListOf<LatLng>()
-            for (i in 0 until coordsArray.length()) {
-                val pair = coordsArray.getJSONArray(i)
-                points.add(LatLng(pair.getDouble(1), pair.getDouble(0)))
-            }
-
-            val steps = mutableListOf<String>()
-            val legs = route.getJSONArray("legs")
-            for (i in 0 until legs.length()) {
-                val stepsArray = legs.getJSONObject(i).getJSONArray("steps")
-                for (j in 0 until stepsArray.length()) {
-                    val step = stepsArray.getJSONObject(j)
-                    val maneuver = step.getJSONObject("maneuver")
-                    val type = maneuver.optString("type")
-                    val modifier = maneuver.optString("modifier", "")
-                    val roadName = step.optString("name", "")
-                    val stepDistance = step.optDouble("distance", 0.0)
-                    steps.add(describeManeuver(type, modifier, roadName, stepDistance))
+            val step = nav.nextStep
+            when {
+                nav.rerouting -> {
+                    bannerArrow.text = "⟳"
+                    bannerDistance.text = "Đang tính lại..."
+                    bannerText.text = "Bạn đã đi lệch tuyến"
+                }
+                step != null -> {
+                    bannerArrow.text = step.kind.arrow
+                    bannerDistance.text = NavigationManager.formatDistance(nav.distanceToNextStep)
+                    bannerText.text = step.text()
                 }
             }
-
-            RouteResult(points, distanceMeters, durationSeconds, steps)
-        } catch (e: Exception) {
-            Log.e("MapActivity", "Loi goi OSRM", e)
-            lastRouteError = "${e.javaClass.simpleName}: ${e.message}"
-            null
-        }
-    }
-
-    /** Dịch kiểu rẽ của OSRM (tiếng Anh) sang mô tả tiếng Việt ngắn gọn. */
-    private fun describeManeuver(type: String, modifier: String, roadName: String, distanceMeters: Double): String {
-        val action = when (type) {
-            "depart" -> "Xuất phát"
-            "arrive" -> "Đã đến nơi"
-            "turn" -> when (modifier) {
-                "left" -> "Rẽ trái"
-                "right" -> "Rẽ phải"
-                "sharp left" -> "Rẽ gắt trái"
-                "sharp right" -> "Rẽ gắt phải"
-                "slight left" -> "Rẽ nhẹ trái"
-                "slight right" -> "Rẽ nhẹ phải"
-                "uturn" -> "Quay đầu"
-                else -> "Rẽ"
-            }
-            "continue" -> "Đi thẳng"
-            "merge" -> "Nhập làn"
-            "roundabout", "rotary" -> "Vào vòng xuyến"
-            "exit roundabout", "exit rotary" -> "Ra khỏi vòng xuyến"
-            "fork" -> "Tại ngã ba, đi theo nhánh phù hợp"
-            "end of road" -> "Cuối đường, rẽ theo hướng phù hợp"
-            "new name" -> "Tiếp tục đi"
-            else -> "Đi tiếp"
-        }
-        val roadPart = if (roadName.isNotBlank()) " vào $roadName" else ""
-        val distPart = if (distanceMeters > 0) " (${distanceMeters.toInt()}m)" else ""
-        return "• $action$roadPart$distPart"
-    }
-
-    /** Bật lại chế độ tự động bám vị trí và đưa camera về ngay vị trí hiện tại. */
-    private fun recenterOnMyLocation() {
-        followEnabled = true
-        if (!::mapLibreMap.isInitialized) return
-        val state = SpeedState.state.value
-        val lat = state.lastLat
-        val lon = state.lastLon
-        if (lat != null && lon != null) {
-            mapLibreMap.easeCamera(CameraUpdateFactory.newLatLngZoom(LatLng(lat, lon), 16.0), 800)
-        }
-    }
-
-    /** Theo dõi vị trí hiện tại; tự động đưa camera bám theo nếu followEnabled. */
-    private fun observeMyLocation(map: MapLibreMap) {
-        scope.launch {
-            SpeedState.state.collect { state ->
-                val lat = state.lastLat
-                val lon = state.lastLon
-                if (lat != null && lon != null) {
-                    val latLng = LatLng(lat, lon)
-                    myLocationMarker?.let { map.removeMarker(it) }
-                    myLocationMarker = map.addMarker(
-                        MarkerOptions().position(latLng).title(MY_LOCATION_TITLE)
-                    )
-                    if (followEnabled) {
-                        map.easeCamera(CameraUpdateFactory.newLatLng(latLng), 800)
-                    }
-                }
+            val eta = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(System.currentTimeMillis() + (nav.remainingSeconds * 1000).toLong()))
+            navRemaining.text = "${NavigationManager.formatDistance(nav.remainingDistance)} • ${formatDuration(nav.remainingSeconds)} • Đến lúc $eta"
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            val wasNavigating = navBanner.visibility == View.VISIBLE
+            navBanner.visibility = View.GONE
+            navBottomBar.visibility = View.GONE
+            findViewById<View>(R.id.searchBar).visibility = View.VISIBLE
+            if (wasNavigating) {
+                if (nav.arrived) Toast.makeText(this, "Bạn đã đến nơi", Toast.LENGTH_LONG).show()
+                clearPlace()
             }
         }
     }
 
-    /** Bảng thông tin: tốc độ, giới hạn, đoạn đường, địa chỉ + công tắc xem & quay camera. */
-    private fun showLocationInfoDialog(lat: Double, lon: Double) {
+    private fun liftSpeedPanel(cover: View?) {
+        if (cover == null || cover.visibility != View.VISIBLE) {
+            speedPanel.translationY = 0f
+            return
+        }
+        cover.post { speedPanel.translationY = -(cover.height.toFloat() + dp(4)) }
+    }
+
+    private fun formatDuration(seconds: Double): String {
+        val min = (seconds / 60).toInt().coerceAtLeast(1)
+        return if (min >= 60) "${min / 60} giờ ${min % 60} phút" else "$min phút"
+    }
+
+    // ---------------------------------------------------------------- Bảng thông tin vị trí + camera
+
+    private fun showLocationInfoDialog() {
+        val s = SpeedState.state.value
+        val lat = s.lastLat ?: return
+        val lon = s.lastLon ?: return
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_location_info, null)
         val infoSpeed = view.findViewById<TextView>(R.id.infoSpeed)
         val infoLimit = view.findViewById<TextView>(R.id.infoLimit)
@@ -376,27 +616,26 @@ class MapActivity : ComponentActivity() {
         val liveSwitch = view.findViewById<Switch>(R.id.liveCameraSwitch)
         val livePreview = view.findViewById<PreviewView>(R.id.liveCameraPreview)
 
-        val state = SpeedState.state.value
-        infoSpeed.text = "Tốc độ hiện tại: ${state.currentSpeedKmh} km/h"
-        infoLimit.text = if (state.speedLimitKmh != null)
-            "Giới hạn tốc độ: ${state.speedLimitKmh} km/h"
-        else "Giới hạn tốc độ: chưa có dữ liệu"
-        infoRoad.text = if (state.roadName.isNotBlank()) "Đoạn đường: ${state.roadName}" else "Đoạn đường: không rõ"
+        infoSpeed.text = "Tốc độ hiện tại: ${s.currentSpeedKmh} km/h  (GPS ±${s.accuracyM?.toInt() ?: 0}m)"
+        infoLimit.text = when {
+            s.speedLimitKmh != null -> "Giới hạn tốc độ: ${s.speedLimitKmh} km/h " +
+                if (s.limitFromSign) "(theo biển báo)" else "(theo luật cho ${AppSettings.vehicle.value.label.lowercase()})"
+            s.roadNote.isNotBlank() -> s.roadNote
+            else -> "Giới hạn tốc độ: chưa có dữ liệu đoạn này"
+        }
+        infoRoad.text = "Đoạn đường: ${s.roadName.ifBlank { "không rõ" }}"
         infoAddress.text = "Địa chỉ: đang tra cứu..."
 
         liveSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 livePreview.visibility = View.VISIBLE
-                val needed = listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
-                val allGranted = needed.all {
-                    ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
-                }
-                if (allGranted) {
+                val needed = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+                if (needed.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }) {
                     startLiveRecording(livePreview)
                 } else {
                     pendingPreviewView = livePreview
                     pendingSwitch = liveSwitch
-                    cameraPermissionLauncher.launch(needed.toTypedArray())
+                    cameraPermissionLauncher.launch(needed)
                 }
             } else {
                 livePreview.visibility = View.GONE
@@ -411,49 +650,31 @@ class MapActivity : ComponentActivity() {
             .setOnCancelListener { stopLiveRecording() }
             .show()
 
-        scope.launch {
-            val addressText = withContext(Dispatchers.IO) {
-                try {
-                    if (!Geocoder.isPresent()) return@withContext null
-                    val geocoder = Geocoder(this@MapActivity, Locale("vi", "VN"))
-                    @Suppress("DEPRECATION")
-                    val results = geocoder.getFromLocation(lat, lon, 1)
-                    results?.firstOrNull()?.getAddressLine(0)
-                } catch (e: Exception) {
-                    null
-                }
-            }
-            infoAddress.text = "Địa chỉ: ${addressText ?: "không lấy được (mất mạng hoặc máy không hỗ trợ)"}"
+        lifecycleScope.launch {
+            val addr = withContext(Dispatchers.IO) { SearchClient.reverse(applicationContext, GeoPoint(lat, lon)) }
+            infoAddress.text = "Địa chỉ: ${addr ?: "không lấy được (mất mạng?)"}"
         }
     }
 
-    /** Bật camera sau, xem trực tiếp + tự động quay và lưu video (như Camera hành trình). */
     private fun startLiveRecording(previewView: PreviewView) {
         val providerFuture = ProcessCameraProvider.getInstance(this)
         providerFuture.addListener({
             val provider = providerFuture.get()
             liveCameraProvider = provider
-            val preview = Preview.Builder().build().also {
-                it.setSurfaceProvider(previewView.surfaceProvider)
-            }
-            val recorder = Recorder.Builder().build()
-            val videoCapture = VideoCapture.withOutput(recorder)
-
+            val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
+            val videoCapture = VideoCapture.withOutput(Recorder.Builder().build())
             try {
                 provider.unbindAll()
                 provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, videoCapture)
-
                 val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-                val contentValues = ContentValues().apply {
+                val values = ContentValues().apply {
                     put(MediaStore.Video.Media.DISPLAY_NAME, "hanhtrinh_dinhvi_$timestamp")
                     put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/SpeedAlert")
                 }
-                val outputOptions = MediaStoreOutputOptions.Builder(
-                    contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-                ).setContentValues(contentValues).build()
-
+                val output = MediaStoreOutputOptions.Builder(contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
+                    .setContentValues(values).build()
                 liveRecording = videoCapture.output
-                    .prepareRecording(this, outputOptions)
+                    .prepareRecording(this, output)
                     .withAudioEnabled()
                     .start(ContextCompat.getMainExecutor(this)) { event ->
                         if (event is VideoRecordEvent.Finalize && !event.hasError()) {
@@ -461,7 +682,7 @@ class MapActivity : ComponentActivity() {
                         }
                     }
             } catch (e: Exception) {
-                // Camera có thể đang bận (vd. đang quay ở màn hình Camera hành trình) - bỏ qua.
+                Toast.makeText(this, "Camera đang bận hoặc không mở được", Toast.LENGTH_SHORT).show()
             }
         }, ContextCompat.getMainExecutor(this))
     }
@@ -472,54 +693,39 @@ class MapActivity : ComponentActivity() {
         liveCameraProvider?.unbindAll()
     }
 
-    private fun loadSavedCameras(map: MapLibreMap) {
-        scope.launch {
-            val cameras = AppDatabase.getInstance(applicationContext).cameraDao().getAll()
-            cameras.forEach { cam ->
-                map.addMarker(
-                    MarkerOptions()
-                        .position(LatLng(cam.lat, cam.lon))
-                        .title("Camera bắn tốc độ")
-                )
-            }
+    // ---------------------------------------------------------------- Tiện ích
+
+    private fun hideKeyboard() {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(searchInput.windowToken, 0)
+        searchInput.clearFocus()
+    }
+
+    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        when {
+            resultsScroll.visibility == View.VISIBLE -> resultsScroll.visibility = View.GONE
+            placeCard.visibility == View.VISIBLE -> clearPlace()
+            else -> @Suppress("DEPRECATION") super.onBackPressed()
         }
     }
 
-    override fun onStart() {
-        super.onStart(); mapView.onStart()
-    }
-
-    override fun onResume() {
-        super.onResume(); mapView.onResume()
-    }
-
-    override fun onPause() {
-        super.onPause(); mapView.onPause()
-    }
-
-    override fun onStop() {
-        super.onStop(); mapView.onStop()
-    }
-
-    override fun onLowMemory() {
-        super.onLowMemory(); mapView.onLowMemory()
-    }
+    override fun onStart() { super.onStart(); mapView.onStart() }
+    override fun onResume() { super.onResume(); mapView.onResume() }
+    override fun onPause() { super.onPause(); mapView.onPause() }
+    override fun onStop() { super.onStop(); mapView.onStop() }
+    override fun onLowMemory() { super.onLowMemory(); mapView.onLowMemory() }
 
     override fun onDestroy() {
-        super.onDestroy()
-        mapView.onDestroy()
         stopLiveRecording()
-        scope.cancel()
+        mapView.onDestroy()
+        super.onDestroy()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         mapView.onSaveInstanceState(outState)
-    }
-
-    companion object {
-        private const val DEFAULT_LAT = 10.7769
-        private const val DEFAULT_LON = 106.7009
-        private const val MY_LOCATION_TITLE = "Vị trí của tôi"
     }
 }

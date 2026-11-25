@@ -6,10 +6,14 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
-@Database(entities = [RoadSegment::class, CameraLocation::class], version = 2, exportSchema = false)
+@Database(
+    entities = [RoadSegment::class, CameraLocation::class, TileInfo::class],
+    version = 3,
+    exportSchema = false
+)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun speedLimitDao(): SpeedLimitDao
+    abstract fun roadDao(): RoadDao
     abstract fun cameraDao(): CameraDao
 
     companion object {
@@ -22,9 +26,9 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "speed_alert.db"
                 )
-                    // MVP: chưa viết Migration cụ thể, chấp nhận xoá DB cũ khi đổi schema.
-                    // Chưa có người dùng thật nên không mất dữ liệu quan trọng ở giai đoạn này.
-                    .fallbackToDestructiveMigration()
+                    // Dữ liệu chỉ là bộ đệm tải lại được từ OpenStreetMap, nên đổi
+                    // cấu trúc thì xoá và tải lại là an toàn.
+                    .fallbackToDestructiveMigration(true)
                     .build().also { INSTANCE = it }
             }
         }
